@@ -1,0 +1,62 @@
+<%- include('../../../partials/header') %>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <h2 class="fw-bold mb-4">
+          <i class="bi bi-kanban me-2 text-warning"></i><%= title %>
+        </h2>
+
+        <%- include('../../../partials/alerts') %>
+
+        <form method="POST"
+              action="<%= item ? '/admin/projects/' + item.id + '?_method=PUT' : '/admin/projects' %>"
+              novalidate>
+
+          <div class="mb-3">
+            <label for="name" class="form-label fw-semibold">Name <span class="text-danger">*</span></label>
+            <input type="text" id="name" name="name" class="form-control"
+                   value="<%= item ? item.name : '' %>" required />
+          </div>
+
+          <div class="mb-3">
+            <label for="client_id" class="form-label fw-semibold">Client <span class="text-danger">*</span></label>
+            <select id="client_id" name="client_id" class="form-select" required>
+              <option value="">-- Select client --</option>
+              <% clients.forEach(c => { %>
+              <option value="<%= c.id %>" <%= (item && item.client_id === c.id) ? 'selected' : '' %>>
+                <%= c.name %>
+              </option>
+              <% }) %>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label for="description" class="form-label fw-semibold">Description</label>
+            <textarea id="description" name="description" class="form-control" rows="3"><%= item ? item.description || '' : '' %></textarea>
+          </div>
+
+          <% if (item) { %>
+          <div class="mb-4">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="active" name="active"
+                     value="1" <%= item.active ? 'checked' : '' %> />
+              <label class="form-check-label" for="active">Active</label>
+            </div>
+          </div>
+          <% } %>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-floppy me-1"></i><%= item ? 'Save changes' : 'Create project' %>
+            </button>
+            <a href="/admin/projects" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../../../partials/footer') %>
