@@ -13,6 +13,7 @@
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body">
     <form method="GET" action="/hours" class="row g-3 align-items-end">
+      <%- include('../partials/csrf') %>
       <div class="col-sm-4">
         <label class="form-label small fw-semibold">From</label>
         <input type="date" name="from" class="form-control" value="<%= from %>" />
@@ -73,6 +74,7 @@
           </a>
           <form action="/hours/<%= e.id %>?_method=DELETE" method="POST" class="d-inline"
                 onsubmit="return confirm('Delete this entry?')">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
             <button type="submit" class="btn btn-sm btn-outline-danger">
               <i class="bi bi-trash"></i>
             </button>

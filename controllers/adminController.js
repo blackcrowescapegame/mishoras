@@ -124,8 +124,13 @@ const ClientsController = {
   },
 
   async delete(req, res) {
-    await Client.delete(parseInt(req.params.id, 10));
-    req.flash('success', 'Client deactivated.');
+    try {
+      await Client.delete(parseInt(req.params.id, 10));
+      req.flash('success', 'Client deactivated.');
+    } catch (err) {
+      console.error(err);
+      req.flash('error', 'Could not deactivate client.');
+    }
     res.redirect('/admin/clients');
   },
 };
@@ -187,8 +192,13 @@ const ProjectsController = {
   },
 
   async delete(req, res) {
-    await Project.delete(parseInt(req.params.id, 10));
-    req.flash('success', 'Project deactivated.');
+    try {
+      await Project.delete(parseInt(req.params.id, 10));
+      req.flash('success', 'Project deactivated.');
+    } catch (err) {
+      console.error(err);
+      req.flash('error', 'Could not deactivate project.');
+    }
     res.redirect('/admin/projects');
   },
 };
@@ -250,8 +260,13 @@ const TasksController = {
   },
 
   async delete(req, res) {
-    await Task.delete(parseInt(req.params.id, 10));
-    req.flash('success', 'Task deactivated.');
+    try {
+      await Task.delete(parseInt(req.params.id, 10));
+      req.flash('success', 'Task deactivated.');
+    } catch (err) {
+      console.error(err);
+      req.flash('error', 'Could not deactivate task.');
+    }
     res.redirect('/admin/tasks');
   },
 };

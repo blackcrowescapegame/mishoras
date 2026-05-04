@@ -13,6 +13,7 @@
         <form method="POST"
               action="<%= item ? '/admin/users/' + item.id + '?_method=PUT' : '/admin/users' %>"
               novalidate>
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
 
           <div class="mb-3">
             <label for="name" class="form-label fw-semibold">Name <span class="text-danger">*</span></label>

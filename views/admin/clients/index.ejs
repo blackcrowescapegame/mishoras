@@ -36,6 +36,7 @@
             </a>
             <form action="/admin/clients/<%= c.id %>?_method=DELETE" method="POST" class="d-inline"
                   onsubmit="return confirm('Deactivate this client?')">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
               <button type="submit" class="btn btn-sm btn-outline-danger">
                 <i class="bi bi-trash"></i>
               </button>

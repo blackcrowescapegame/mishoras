@@ -7,6 +7,7 @@ const session        = require('express-session');
 const flash          = require('connect-flash');
 const methodOverride = require('method-override');
 const path           = require('path');
+const { doubleCsrf } = require('csrf-csrf');
 
 const authRoutes  = require('./routes/auth');
 const hoursRoutes = require('./routes/hours');
@@ -38,12 +39,35 @@ app.use(session({
   cookie: {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
     maxAge: 8 * 60 * 60 * 1000, // 8 hours
   },
 }));
 
 /* ── Flash messages ── */
 app.use(flash());
+
+/* ── CSRF protection ── */
+const { generateToken, doubleCsrfProtection } = doubleCsrf({
+  getSecret: () => process.env.SESSION_SECRET || 'mishoras-dev-secret',
+  cookieName: '__Host-psifi.x-csrf-token',
+  cookieOptions: {
+    sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+  },
+  size: 64,
+  getTokenFromRequest: (req) =>
+    req.body._csrf || req.headers['x-csrf-token'],
+});
+
+app.use(doubleCsrfProtection);
+
+/* Expose CSRF token to all EJS views */
+app.use((req, res, next) => {
+  res.locals.csrfToken = generateToken(req, res);
+  next();
+});
 
 /* ── Routes ── */
 app.use('/auth',  authRoutes);

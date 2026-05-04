@@ -14,6 +14,7 @@
         <form method="POST"
               action="<%= entry ? '/hours/' + entry.id + '?_method=PUT' : '/hours' %>"
               novalidate>
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
 
           <!-- Entry mode tabs (only on new entry) -->
           <% if (!entry) { %>
