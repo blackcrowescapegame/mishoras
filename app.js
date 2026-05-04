@@ -48,12 +48,13 @@ app.use(session({
 app.use(flash());
 
 /* ── CSRF protection ── */
+const isProduction = process.env.NODE_ENV === 'production';
 const { generateToken, doubleCsrfProtection } = doubleCsrf({
   getSecret: () => process.env.SESSION_SECRET || 'mishoras-dev-secret',
-  cookieName: '__Host-psifi.x-csrf-token',
+  cookieName: isProduction ? '__Host-x-csrf-token' : 'x-csrf-token',
   cookieOptions: {
     sameSite: 'strict',
-    secure: process.env.NODE_ENV === 'production',
+    secure: isProduction,
     httpOnly: true,
   },
   size: 64,
