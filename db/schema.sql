@@ -72,6 +72,6 @@ INSERT INTO users (name, email, password, role)
 VALUES (
     N'Administrator',
     N'admin@mishoras.local',
-    N'$2b$10$rHRpN/JBV4VMcvmGZLfG7.bZ8yYT5EqN5E1cEsXfPCzLdH6w8P7mK',  -- Admin@1234
+    N'$2b$10$EwLi0V8wuWc2KZ0PT2QIMeQkQT1iET02xKg6h1lWIBk0R9sQVyLIS',  -- Admin@1234
     N'admin'
 );

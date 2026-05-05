@@ -1,4 +1,4 @@
-<%- include('../../../partials/header') %>
+<%- include('../../partials/header') %>
 
 <div class="row justify-content-center">
   <div class="col-lg-6">
@@ -8,7 +8,7 @@
           <i class="bi bi-person me-2 text-primary"></i><%= title %>
         </h2>
 
-        <%- include('../../../partials/alerts') %>
+        <%- include('../../partials/alerts') %>
 
         <form method="POST"
               action="<%= item ? '/admin/users/' + item.id + '?_method=PUT' : '/admin/users' %>"
@@ -65,4 +65,4 @@
   </div>
 </div>
 
-<%- include('../../../partials/footer') %>
+<%- include('../../partials/footer') %>

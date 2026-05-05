@@ -7,6 +7,7 @@ const session        = require('express-session');
 const flash          = require('connect-flash');
 const methodOverride = require('method-override');
 const path           = require('path');
+const cookieParser   = require('cookie-parser');
 const { doubleCsrf } = require('csrf-csrf');
 
 const authRoutes  = require('./routes/auth');
@@ -23,6 +24,9 @@ app.set('views', path.join(__dirname, 'views'));
 
 /* ── Static files ── */
 app.use(express.static(path.join(__dirname, 'public')));
+
+/* ── Cookie parser (required by csrf-csrf) ── */
+app.use(cookieParser());
 
 /* ── Body parsers ── */
 app.use(express.urlencoded({ extended: true }));
@@ -49,8 +53,9 @@ app.use(flash());
 
 /* ── CSRF protection ── */
 const isProduction = process.env.NODE_ENV === 'production';
-const { generateToken, doubleCsrfProtection } = doubleCsrf({
+const { generateCsrfToken, doubleCsrfProtection } = doubleCsrf({
   getSecret: () => process.env.SESSION_SECRET || 'mishoras-dev-secret',
+  getSessionIdentifier: (req) => req.session.id,
   cookieName: isProduction ? '__Host-x-csrf-token' : 'x-csrf-token',
   cookieOptions: {
     sameSite: 'strict',
@@ -58,7 +63,7 @@ const { generateToken, doubleCsrfProtection } = doubleCsrf({
     httpOnly: true,
   },
   size: 64,
-  getTokenFromRequest: (req) =>
+  getCsrfTokenFromRequest: (req) =>
     req.body._csrf || req.headers['x-csrf-token'],
 });
 
@@ -66,7 +71,7 @@ app.use(doubleCsrfProtection);
 
 /* Expose CSRF token to all EJS views */
 app.use((req, res, next) => {
-  res.locals.csrfToken = generateToken(req, res);
+  res.locals.csrfToken = generateCsrfToken(req, res);
   next();
 });
 
