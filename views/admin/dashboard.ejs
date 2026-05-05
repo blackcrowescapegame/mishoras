@@ -1,0 +1,48 @@
+<%- include('../partials/header') %>
+
+<h2 class="fw-bold mb-4"><i class="bi bi-speedometer2 me-2 text-primary"></i>Admin Dashboard</h2>
+
+<div class="row g-4">
+  <div class="col-sm-6 col-lg-3">
+    <a href="/admin/users" class="text-decoration-none">
+      <div class="card border-0 shadow-sm h-100 text-center p-3">
+        <i class="bi bi-people text-primary" style="font-size:2.5rem"></i>
+        <h5 class="mt-2 mb-0">Users</h5>
+      </div>
+    </a>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <a href="/admin/clients" class="text-decoration-none">
+      <div class="card border-0 shadow-sm h-100 text-center p-3">
+        <i class="bi bi-building text-success" style="font-size:2.5rem"></i>
+        <h5 class="mt-2 mb-0">Clients</h5>
+      </div>
+    </a>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <a href="/admin/projects" class="text-decoration-none">
+      <div class="card border-0 shadow-sm h-100 text-center p-3">
+        <i class="bi bi-kanban text-warning" style="font-size:2.5rem"></i>
+        <h5 class="mt-2 mb-0">Projects</h5>
+      </div>
+    </a>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <a href="/admin/tasks" class="text-decoration-none">
+      <div class="card border-0 shadow-sm h-100 text-center p-3">
+        <i class="bi bi-check2-square text-info" style="font-size:2.5rem"></i>
+        <h5 class="mt-2 mb-0">Tasks</h5>
+      </div>
+    </a>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <a href="/admin/reports" class="text-decoration-none">
+      <div class="card border-0 shadow-sm h-100 text-center p-3">
+        <i class="bi bi-bar-chart text-danger" style="font-size:2.5rem"></i>
+        <h5 class="mt-2 mb-0">Reports</h5>
+      </div>
+    </a>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

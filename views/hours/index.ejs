@@ -1,0 +1,96 @@
+<%- include('../partials/header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="fw-bold mb-0"><i class="bi bi-clock me-2 text-primary"></i>My Hours</h2>
+  <a href="/hours/new" class="btn btn-primary">
+    <i class="bi bi-plus-circle me-1"></i>Log Hours
+  </a>
+</div>
+
+<%- include('../partials/alerts') %>
+
+<!-- Filter -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <form method="GET" action="/hours" class="row g-3 align-items-end">
+      <div class="col-sm-4">
+        <label class="form-label small fw-semibold">From</label>
+        <input type="date" name="from" class="form-control" value="<%= from %>" />
+      </div>
+      <div class="col-sm-4">
+        <label class="form-label small fw-semibold">To</label>
+        <input type="date" name="to" class="form-control" value="<%= to %>" />
+      </div>
+      <div class="col-sm-4">
+        <button type="submit" class="btn btn-outline-primary w-100">
+          <i class="bi bi-funnel me-1"></i>Filter
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Summary badge -->
+<% if (entries.length) { %>
+<p class="text-muted">
+  Showing <strong><%= entries.length %></strong> entries –
+  total <strong class="text-primary"><%= totalHours %> h</strong>
+</p>
+<% } %>
+
+<!-- Entries table -->
+<% if (!entries.length) { %>
+<div class="text-center py-5 text-muted">
+  <i class="bi bi-inbox" style="font-size:3rem"></i>
+  <p class="mt-3">No entries found. <a href="/hours/new">Log your first hours!</a></p>
+</div>
+<% } else { %>
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Date</th>
+        <th>Client</th>
+        <th>Project</th>
+        <th>Task</th>
+        <th class="text-end">Hours</th>
+        <th>Description</th>
+        <th class="text-center">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% entries.forEach(e => { %>
+      <tr>
+        <td class="text-nowrap"><%= new Date(e.entry_date).toLocaleDateString() %></td>
+        <td><span class="badge bg-secondary-subtle text-secondary"><%= e.client_name %></span></td>
+        <td><%= e.project_name %></td>
+        <td><%= e.task_name || '—' %></td>
+        <td class="text-end fw-semibold"><%= parseFloat(e.hours).toFixed(2) %></td>
+        <td class="text-truncate" style="max-width:200px"><%= e.description || '' %></td>
+        <td class="text-center text-nowrap">
+          <a href="/hours/<%= e.id %>/edit" class="btn btn-sm btn-outline-secondary me-1">
+            <i class="bi bi-pencil"></i>
+          </a>
+          <form action="/hours/<%= e.id %>?_method=DELETE" method="POST" class="d-inline"
+                onsubmit="return confirm('Delete this entry?')">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+              <i class="bi bi-trash"></i>
+            </button>
+          </form>
+        </td>
+      </tr>
+      <% }) %>
+    </tbody>
+    <tfoot class="table-light">
+      <tr>
+        <td colspan="4" class="fw-bold text-end">Total</td>
+        <td class="text-end fw-bold text-primary"><%= totalHours %> h</td>
+        <td colspan="2"></td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+<% } %>
+
+<%- include('../partials/footer') %>

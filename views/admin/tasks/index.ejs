@@ -1,0 +1,57 @@
+<%- include('../../partials/header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="fw-bold mb-0"><i class="bi bi-check2-square me-2 text-info"></i>Tasks</h2>
+  <a href="/admin/tasks/new" class="btn btn-primary">
+    <i class="bi bi-plus-circle me-1"></i>New Task
+  </a>
+</div>
+
+<%- include('../../partials/alerts') %>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>#</th><th>Name</th><th>Project</th><th>Client</th><th>Description</th>
+          <th>Status</th><th>Created</th><th class="text-center">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% tasks.forEach(t => { %>
+        <tr>
+          <td class="text-muted small"><%= t.id %></td>
+          <td><%= t.name %></td>
+          <td><%= t.project_name %></td>
+          <td><span class="badge bg-secondary-subtle text-secondary"><%= t.client_name %></span></td>
+          <td class="text-muted small text-truncate" style="max-width:180px"><%= t.description || '—' %></td>
+          <td>
+            <span class="badge <%= t.active ? 'bg-success' : 'bg-secondary' %>">
+              <%= t.active ? 'Active' : 'Inactive' %>
+            </span>
+          </td>
+          <td class="small text-muted"><%= new Date(t.created_at).toLocaleDateString() %></td>
+          <td class="text-center text-nowrap">
+            <a href="/admin/tasks/<%= t.id %>/edit" class="btn btn-sm btn-outline-secondary me-1">
+              <i class="bi bi-pencil"></i>
+            </a>
+            <form action="/admin/tasks/<%= t.id %>?_method=DELETE" method="POST" class="d-inline"
+                  onsubmit="return confirm('Deactivate this task?')">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+              <button type="submit" class="btn btn-sm btn-outline-danger">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        <% }) %>
+        <% if (!tasks.length) { %>
+        <tr><td colspan="8" class="text-center text-muted py-4">No tasks found.</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%- include('../../partials/footer') %>

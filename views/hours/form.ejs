@@ -1,0 +1,137 @@
+<%- include('../partials/header') %>
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <h2 class="fw-bold mb-4">
+          <i class="bi bi-clock-history me-2 text-primary"></i>
+          <%= title %>
+        </h2>
+
+        <%- include('../partials/alerts') %>
+
+        <form method="POST"
+              action="<%= entry ? '/hours/' + entry.id + '?_method=PUT' : '/hours' %>"
+              novalidate>
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+          <!-- Entry mode tabs (only on new entry) -->
+          <% if (!entry) { %>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Entry mode</label>
+            <div class="btn-group w-100" role="group">
+              <input type="radio" class="btn-check" name="entry_mode" id="modeDay" value="day" checked />
+              <label class="btn btn-outline-primary" for="modeDay">
+                <i class="bi bi-calendar-day me-1"></i>By day
+              </label>
+              <input type="radio" class="btn-check" name="entry_mode" id="modeQty" value="quantity" />
+              <label class="btn btn-outline-primary" for="modeQty">
+                <i class="bi bi-123 me-1"></i>By quantity
+              </label>
+            </div>
+          </div>
+          <% } %>
+
+          <!-- Date (shown for "day" mode) -->
+          <div class="mb-3" id="dateField">
+            <label for="entry_date" class="form-label fw-semibold">Date</label>
+            <input type="date" id="entry_date" name="entry_date" class="form-control"
+                   value="<%= entry ? new Date(entry.entry_date).toISOString().slice(0,10) : new Date().toISOString().slice(0,10) %>"
+                   required />
+          </div>
+
+          <!-- Project -->
+          <div class="mb-3">
+            <label for="project_id" class="form-label fw-semibold">Project <span class="text-danger">*</span></label>
+            <select id="project_id" name="project_id" class="form-select" required>
+              <option value="">-- Select project --</option>
+              <% projects.forEach(p => { %>
+              <option value="<%= p.id %>"
+                <%= (entry && entry.project_id === p.id) ? 'selected' : '' %>>
+                <%= p.client_name %> / <%= p.name %>
+              </option>
+              <% }) %>
+            </select>
+          </div>
+
+          <!-- Task (loaded via AJAX) -->
+          <div class="mb-3">
+            <label for="task_id" class="form-label fw-semibold">Task <span class="text-muted small">(optional)</span></label>
+            <select id="task_id" name="task_id" class="form-select">
+              <option value="">-- Select task (optional) --</option>
+              <% tasks.forEach(t => { %>
+              <option value="<%= t.id %>" <%= (entry && entry.task_id === t.id) ? 'selected' : '' %>>
+                <%= t.name %>
+              </option>
+              <% }) %>
+            </select>
+          </div>
+
+          <!-- Hours -->
+          <div class="mb-3">
+            <label for="hours" class="form-label fw-semibold">Hours <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <input type="number" id="hours" name="hours" class="form-control"
+                     step="0.25" min="0.25" max="24"
+                     value="<%= entry ? parseFloat(entry.hours).toFixed(2) : '' %>"
+                     placeholder="e.g. 2.5" required />
+              <span class="input-group-text">h</span>
+            </div>
+            <div class="form-text">You can use decimals (0.25 = 15 min, 0.5 = 30 min…)</div>
+          </div>
+
+          <!-- Description -->
+          <div class="mb-4">
+            <label for="description" class="form-label fw-semibold">Description</label>
+            <textarea id="description" name="description" class="form-control" rows="3"
+                      placeholder="What did you work on?"><%= entry ? entry.description || '' : '' %></textarea>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-floppy me-1"></i><%= entry ? 'Save changes' : 'Log hours' %>
+            </button>
+            <a href="/hours" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const projectSel = document.getElementById('project_id');
+  const taskSel    = document.getElementById('task_id');
+  const dateField  = document.getElementById('dateField');
+  const modeDay    = document.getElementById('modeDay');
+  const modeQty    = document.getElementById('modeQty');
+
+  // Toggle date visibility for quantity mode
+  if (modeDay && modeQty) {
+    function toggleDate() {
+      dateField.style.display = modeQty && modeQty.checked ? 'none' : '';
+    }
+    modeDay.addEventListener('change', toggleDate);
+    modeQty.addEventListener('change', toggleDate);
+  }
+
+  // Load tasks when project changes
+  projectSel.addEventListener('change', async function () {
+    const pid = this.value;
+    taskSel.innerHTML = '<option value="">Loading…</option>';
+    if (!pid) { taskSel.innerHTML = '<option value="">-- Select task (optional) --</option>'; return; }
+    try {
+      const res  = await fetch('/hours/api/tasks/' + pid);
+      const data = await res.json();
+      taskSel.innerHTML = '<option value="">-- Select task (optional) --</option>' +
+        data.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    } catch (e) {
+      taskSel.innerHTML = '<option value="">-- Select task (optional) --</option>';
+    }
+  });
+}());
+</script>
+
+<%- include('../partials/footer') %>
