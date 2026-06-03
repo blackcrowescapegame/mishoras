@@ -1,7 +1,18 @@
 /* ── mishoras custom styles ── */
 
+html, body {
+  height: 100%;
+}
+
 body {
   background-color: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+main {
+  flex: 1 0 auto;
 }
 
 .navbar-brand {
@@ -39,3 +50,227 @@ body {
     padding-right: 1rem;
   }
 }
+
+/* ── Timesheet grid ── */
+.ts-grid {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.ts-header-row,
+.ts-row,
+.ts-totals-row {
+  display: grid;
+  grid-template-columns: 2fr 1.4fr repeat(5, 72px) 72px;
+  align-items: center;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.ts-header-row {
+  background: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.ts-row:hover {
+  background: #f8f9fb;
+}
+
+.ts-totals-row {
+  background: #f8f9fa;
+  border-top: 2px solid #dee2e6;
+  border-bottom: none;
+}
+
+/* Header cells */
+.ts-th {
+  padding: 10px 8px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6c757d;
+}
+
+.ts-col-day.ts-th {
+  text-align: center;
+}
+
+.ts-today .ts-day-name {
+  color: #0d6efd;
+  font-weight: 700;
+}
+
+.ts-today .ts-day-col-total {
+  color: #0d6efd;
+}
+
+.ts-th .ts-day-name {
+  font-size: 0.72rem;
+}
+.ts-th .ts-day-col-total {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* Column cells */
+.ts-col-project { padding: 6px 8px; }
+.ts-col-task    { padding: 6px 8px; }
+.ts-col-day     { padding: 6px 4px; text-align: center; position: relative; }
+.ts-col-total   { padding: 6px 8px; text-align: center; font-weight: 600; font-size: 0.88rem; color: #495057; }
+
+.ts-today-col {
+  background: rgba(13, 110, 253, 0.04);
+}
+
+/* Project / task selects */
+.ts-select {
+  width: 100%;
+  border: 1px solid #dee2e6;
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 5px 10px;
+  font-size: 0.875rem;
+  color: #6c757d;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16'%3E%3Cpath fill='%236c757d' d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.ts-select:focus {
+  outline: none;
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.18rem rgba(13,110,253,.15);
+  color: #212529;
+}
+.ts-select option { color: #212529; }
+
+/* Time inputs */
+.ts-time-input {
+  width: 62px;
+  border: 1px solid #dee2e6;
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 5px 4px;
+  font-size: 0.875rem;
+  text-align: center;
+  color: #495057;
+  transition: border-color .15s;
+}
+.ts-time-input:focus {
+  outline: none;
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.18rem rgba(13,110,253,.15);
+}
+.ts-time-input.has-value {
+  color: #212529;
+  font-weight: 500;
+}
+
+/* Edit button on filled week cells */
+.ts-edit-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: none;
+  border: none;
+  padding: 1px 3px;
+  font-size: .68rem;
+  color: #adb5bd;
+  opacity: 0;
+  transition: opacity .15s, color .1s;
+  cursor: pointer;
+  line-height: 1;
+  border-radius: 3px;
+}
+.ts-col-day:hover .ts-edit-btn {
+  opacity: 1;
+}
+.ts-edit-btn:hover {
+  background: rgba(13,110,253,.08);
+  color: #0d6efd;
+}
+
+/* Row total */
+.ts-row-total { color: #495057; }
+
+/* Grand totals row */
+.ts-col-grand-total {
+  padding: 8px 4px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: #495057;
+}
+.ts-grand-total {
+  padding: 8px 8px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #0d6efd;
+}
+.ts-totals-label {
+  padding: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #6c757d;
+}
+
+/* Action bar */
+.ts-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 12px 16px;
+  border-top: 1px solid #e9ecef;
+  background: #f8f9fa;
+  border-radius: 0 0 0.75rem 0.75rem;
+}
+
+/* ── Day view ── */
+.dv-entry {
+  transition: background .12s;
+}
+.dv-entry:hover {
+  background: #f8f9fb;
+}
+.dv-entry:last-child {
+  border-bottom: none !important;
+}
+.dv-duration {
+  font-size: .95rem;
+  color: #343a40;
+  min-width: 52px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Optgroup styling in timesheet selects */
+.ts-select optgroup {
+  font-weight: 700;
+  font-style: normal;
+  color: #343a40;
+}
+.ts-select optgroup option {
+  font-weight: 400;
+  color: #212529;
+  padding-left: 8px;
+}
+
+/* Nav buttons */
+.ts-nav-btn {
+  border-radius: 0.5rem;
+  padding: 3px 8px;
+  line-height: 1.5;
+}
+.ts-week-label {
+  font-size: 0.92rem;
+  color: #343a40;
+}
+

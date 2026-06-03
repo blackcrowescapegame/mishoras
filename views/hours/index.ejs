@@ -1,96 +1,394 @@
 <%- include('../partials/header') %>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h2 class="fw-bold mb-0"><i class="bi bi-clock me-2 text-primary"></i>My Hours</h2>
-  <a href="/hours/new" class="btn btn-primary">
-    <i class="bi bi-plus-circle me-1"></i>Log Hours
-  </a>
+<!-- Page title + Week/Day toggle -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="fw-bold mb-0">Track</h2>
+  <div class="btn-group" role="group" aria-label="View toggle">
+    <a href="/hours?weekStart=<%= weekStart %>"
+       class="btn btn-sm <%= view === 'week' ? 'btn-secondary' : 'btn-outline-secondary' %>">Week</a>
+    <a href="/hours?view=day&date=<%= currentDate %>"
+       class="btn btn-sm <%= view === 'day' ? 'btn-secondary' : 'btn-outline-secondary' %>">Day</a>
+  </div>
 </div>
 
 <%- include('../partials/alerts') %>
 
-<!-- Filter -->
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body">
-    <form method="GET" action="/hours" class="row g-3 align-items-end">
-      <div class="col-sm-4">
-        <label class="form-label small fw-semibold">From</label>
-        <input type="date" name="from" class="form-control" value="<%= from %>" />
+<% if (view === 'week') { %>
+
+<!-- Week navigation bar -->
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body py-2 px-3 d-flex align-items-center gap-2">
+    <a href="/hours?weekStart=<%= prevWeek %>" class="btn btn-sm btn-outline-secondary ts-nav-btn">
+      <i class="bi bi-chevron-left"></i>
+    </a>
+    <button type="button" class="btn btn-sm btn-link fw-semibold ts-week-label p-0 text-decoration-none" id="weekLabelBtn" title="Jump to week">
+      <%= weekLabel %> <i class="bi bi-calendar3 ms-1" style="font-size:.8rem"></i>
+    </button>
+    <input type="date" id="weekJumpPicker" value="<%= weekStart %>" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0;" />
+    <a href="/hours?weekStart=<%= nextWeek %>" class="btn btn-sm btn-outline-secondary ts-nav-btn">
+      <i class="bi bi-chevron-right"></i>
+    </a>
+    <% if (!isCurrentWeek) { %>
+    <a href="/hours" class="btn btn-sm btn-outline-secondary ts-nav-btn" title="Go to current week">
+      <i class="bi bi-house"></i>
+    </a>
+    <% } %>
+  </div>
+</div>
+
+<!-- Timesheet form -->
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <form method="POST" action="/hours/weekly" id="timesheetForm" novalidate>
+      <input type="hidden" name="weekStart" value="<%= weekStart %>" />
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+      <div class="ts-grid">
+        <!-- Header row -->
+        <div class="ts-header-row">
+          <div class="ts-col-project ts-th">PROJECT <span class="text-danger">*</span></div>
+          <div class="ts-col-task ts-th">TASK</div>
+          <% weekDays.forEach(function(wd, wi) { %>
+          <div class="ts-col-day ts-th <%= wd.isToday ? 'ts-today' : '' %>">
+            <div class="ts-day-name"><%= wd.label %>, <%= wd.num %> <%= wd.month %></div>
+            <div class="ts-day-col-total" data-col-idx="<%= wi %>"><%= colTotals[wi] %></div>
+          </div>
+          <% }) %>
+          <div class="ts-col-total ts-th">
+            <div class="ts-day-name">Total</div>
+            <div id="tsWeekTotal"><%= weekTotal %></div>
+          </div>
+        </div>
+
+        <!-- Data rows -->
+        <div id="tsRows">
+          <% rows.forEach(function(row, i) { %>
+          <div class="ts-row" data-row="<%= i %>">
+            <div class="ts-col-project">
+              <select name="rows[<%= i %>][project_id]" class="ts-select ts-project-select">
+                <option value="">Select a project...</option>
+                <%
+                  const groupedRow = {};
+                  projects.forEach(function(p) {
+                    if (!groupedRow[p.client_name]) groupedRow[p.client_name] = [];
+                    groupedRow[p.client_name].push(p);
+                  });
+                  Object.keys(groupedRow).forEach(function(clientName) {
+                %>
+                <optgroup label="<%= clientName %>">
+                  <% groupedRow[clientName].forEach(function(p) { %>
+                  <option value="<%= p.id %>" <%= (row.project_id && row.project_id == p.id) ? 'selected' : '' %>><%= p.client_name %> - <%= p.name %></option>
+                  <% }); %>
+                </optgroup>
+                <% }); %>
+              </select>
+            </div>
+            <div class="ts-col-task">
+              <select name="rows[<%= i %>][task_id]" class="ts-select ts-task-select" data-selected="<%= row.task_id || '' %>">
+                <option value="">Select a task...</option>
+                <% if (row.task_id) { %>
+                <option value="<%= row.task_id %>" selected><%= row.task_name %></option>
+                <% } %>
+              </select>
+            </div>
+            <% weekDays.forEach(function(wd, j) { %>
+            <% const cell = row.days[wd.date]; %>
+            <div class="ts-col-day <%= wd.isToday ? 'ts-today-col' : '' %>">
+              <input type="text"
+                     name="rows[<%= i %>][d<%= j %>]"
+                     class="ts-time-input"
+                     placeholder="hh:mm"
+                     value="<%= cell ? cell.hhmm : '' %>"
+                     data-entry-id="<%= cell && cell.id ? cell.id : '' %>"
+                     data-entry-date="<%= wd.date %>"
+                     data-row="<%= i %>"
+                     autocomplete="off" />
+              <% if (cell && cell.id) { %>
+              <button type="button" class="ts-edit-btn"
+                data-bs-toggle="modal" data-bs-target="#editTimeLogModal"
+                data-id="<%= cell.id %>"
+                data-project-id="<%= row.project_id %>"
+                data-task-id="<%= row.task_id || '' %>"
+                data-task-name="<%= row.task_name || '' %>"
+                data-hours-str="<%= cell.hhmm %>"
+                data-date="<%= wd.date %>"
+                data-description="<%= (cell.description || '').replace(/"/g, '&quot;') %>"
+                title="Edit entry"><i class="bi bi-pencil-square"></i></button>
+              <% } %>
+            </div>
+            <% }) %>
+            <div class="ts-col-total ts-row-total">0:00</div>
+          </div>
+          <% }) %>
+        </div>
+
+        <!-- Column totals row -->
+        <div class="ts-totals-row">
+          <div class="ts-col-project ts-totals-label"></div>
+          <div class="ts-col-task"></div>
+          <% colTotals.forEach(function(ct, j) { %>
+          <div class="ts-col-day ts-col-grand-total" data-total-col="<%= j %>"><%= ct %></div>
+          <% }) %>
+          <div class="ts-col-total ts-grand-total" id="tsGrandTotal"><%= weekTotal %></div>
+        </div>
       </div>
-      <div class="col-sm-4">
-        <label class="form-label small fw-semibold">To</label>
-        <input type="date" name="to" class="form-control" value="<%= to %>" />
-      </div>
-      <div class="col-sm-4">
-        <button type="submit" class="btn btn-outline-primary w-100">
-          <i class="bi bi-funnel me-1"></i>Filter
+
+      <!-- Actions -->
+      <div class="ts-actions">
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="tsAddRow">
+          <i class="bi bi-plus"></i> Add timesheet row
+        </button>
+        <button type="submit" class="btn btn-sm btn-primary ms-auto">
+          <i class="bi bi-floppy me-1"></i>Save
         </button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- Summary badge -->
-<% if (entries.length) { %>
-<p class="text-muted">
-  Showing <strong><%= entries.length %></strong> entries –
-  total <strong class="text-primary"><%= totalHours %> h</strong>
-</p>
+<% } else { %>
+
+<!-- Day navigation bar -->
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body py-2 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-2">
+      <a href="/hours?view=day&date=<%= prevDay %>" class="btn btn-sm btn-outline-secondary ts-nav-btn">
+        <i class="bi bi-chevron-left"></i>
+      </a>
+      <span class="fw-semibold ts-week-label"><%= dayLabel %></span>
+      <a href="/hours?view=day&date=<%= nextDay %>" class="btn btn-sm btn-outline-secondary ts-nav-btn">
+        <i class="bi bi-chevron-right"></i>
+      </a>
+      <% if (!isToday) { %>
+      <a href="/hours?view=day" class="btn btn-sm btn-outline-secondary ts-nav-btn" title="Go to today">
+        <i class="bi bi-house"></i>
+      </a>
+      <% } %>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <span class="small text-muted">Total: <strong class="text-dark"><%= dayTotal %></strong></span>
+      <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addTimeLogModal">
+        <i class="bi bi-plus me-1"></i>Add time log
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Day entries list -->
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <% if (!dayEntries.length) { %>
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-clock" style="font-size:2.5rem;opacity:.3"></i>
+      <p class="fw-semibold mt-3 mb-1">No time tracked on this day.</p>
+      <p class="small mb-0">
+        <a href="#" data-bs-toggle="modal" data-bs-target="#addTimeLogModal">Add a time log</a> with a completed duration.
+      </p>
+    </div>
+    <% } else { %>
+    <% dayEntries.forEach(function(e) { %>
+    <div class="dv-entry d-flex align-items-center gap-3 px-4 py-3 border-bottom">
+      <div class="flex-grow-1">
+        <div class="fw-semibold small text-dark"><%= e.client_name %> – <%= e.project_name %></div>
+        <% if (e.task_name) { %><div class="text-muted small"><i class="bi bi-check2 me-1"></i><%= e.task_name %></div><% } %>
+        <% if (e.description) { %><div class="text-muted small fst-italic mt-1"><%= e.description %></div><% } %>
+      </div>
+      <div class="fw-bold dv-duration"><%= e.hoursStr %></div>
+      <div class="d-flex gap-1">
+        <button type="button" class="btn btn-sm btn-outline-secondary dv-edit-btn"
+          data-bs-toggle="modal" data-bs-target="#editTimeLogModal"
+          data-id="<%= e.id %>"
+          data-project-id="<%= e.project_id %>"
+          data-task-id="<%= e.task_id || '' %>"
+          data-task-name="<%= e.task_name || '' %>"
+          data-hours-str="<%= e.hoursStr %>"
+          data-description="<%= (e.description || '').replace(/"/g, '&quot;') %>">
+          <i class="bi bi-pencil"></i>
+        </button>
+        <form action="/hours/<%= e.id %>?_method=DELETE" method="POST" class="d-inline"
+              onsubmit="return confirm('Delete this entry?')">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <input type="hidden" name="_returnTo" value="/hours?view=day&date=<%= currentDate %>" />
+          <button type="submit" class="btn btn-sm btn-outline-danger">
+            <i class="bi bi-trash"></i>
+          </button>
+        </form>
+      </div>
+    </div>
+    <% }) %>
+    <% } %>
+  </div>
+</div>
+
+<!-- Add Time Log Modal -->
+<div class="modal fade" id="addTimeLogModal" tabindex="-1" aria-labelledby="addTimeLogModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-1">
+        <h5 class="modal-title fw-bold" id="addTimeLogModalLabel">Add time log</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="POST" action="/hours" id="addTimeLogForm" novalidate>
+        <input type="hidden" name="_csrf"     value="<%= csrfToken %>" />
+        <input type="hidden" name="entry_date" value="<%= currentDate %>" />
+        <input type="hidden" name="_dayView"  value="1" />
+        <div class="modal-body pt-2">
+          <div class="row g-4">
+            <!-- Left: project / task / description -->
+            <div class="col-md-7">
+              <label class="form-label small text-muted fw-semibold text-uppercase ls-1">Track on</label>
+              <div class="input-group mb-2">
+                <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-briefcase"></i></span>
+                <select id="modalProjectId" name="project_id" class="form-select border-start-0" required>
+                  <option value="">Select a project...</option>
+                  <%
+                    const groupedDv = {};
+                    projects.forEach(function(p) {
+                      if (!groupedDv[p.client_name]) groupedDv[p.client_name] = [];
+                      groupedDv[p.client_name].push(p);
+                    });
+                    Object.keys(groupedDv).forEach(function(clientName) {
+                  %>
+                  <optgroup label="<%= clientName %>">
+                    <% groupedDv[clientName].forEach(function(p) { %>
+                    <option value="<%= p.id %>"><%= p.client_name %> - <%= p.name %></option>
+                    <% }); %>
+                  </optgroup>
+                  <% }); %>
+                </select>
+              </div>
+              <div class="input-group mb-3">
+                <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-check2"></i></span>
+                <select id="modalTaskId" name="task_id" class="form-select border-start-0">
+                  <option value="">Select a task...</option>
+                </select>
+              </div>
+              <textarea name="description" class="form-control" rows="3"
+                        placeholder="Add log description..."></textarea>
+            </div>
+            <!-- Right: duration / date -->
+            <div class="col-md-5">
+              <label class="form-label small text-muted fw-semibold text-uppercase ls-1">Duration</label>
+              <div class="input-group mb-3">
+                <span class="input-group-text bg-white text-muted"><i class="bi bi-hourglass-split"></i></span>
+                <input type="text" id="modalDuration" name="hours" class="form-control"
+                       placeholder="hh:mm" required autocomplete="off" />
+              </div>
+              <div class="d-flex align-items-center gap-2 text-muted small">
+                <i class="bi bi-calendar3"></i>
+                <span><%= new Date(currentDate + 'T00:00:00').toLocaleDateString('en-GB', {day:'2-digit',month:'2-digit',year:'numeric'}) %></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary me-auto" data-bs-dismiss="modal">Dismiss</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-plus me-1"></i>Add time log
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <% } %>
 
-<!-- Entries table -->
-<% if (!entries.length) { %>
-<div class="text-center py-5 text-muted">
-  <i class="bi bi-inbox" style="font-size:3rem"></i>
-  <p class="mt-3">No entries found. <a href="/hours/new">Log your first hours!</a></p>
+<!-- Edit Time Log Modal -->
+<div class="modal fade" id="editTimeLogModal" tabindex="-1" aria-labelledby="editTimeLogModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-1">
+        <h5 class="modal-title fw-bold" id="editTimeLogModalLabel">Edit time log</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="POST" id="editTimeLogForm" novalidate>
+        <input type="hidden" name="_method"    value="PUT" />
+        <input type="hidden" name="_csrf"      value="<%= csrfToken %>" />
+        <input type="hidden" name="entry_date" value="<%= currentDate %>" />
+        <input type="hidden" name="_returnTo"  value="/hours?view=day&date=<%= currentDate %>" />
+        <div class="modal-body pt-2">
+          <div class="row g-4">
+            <div class="col-md-7">
+              <label class="form-label small text-muted fw-semibold text-uppercase ls-1">Track on</label>
+              <div class="input-group mb-2">
+                <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-briefcase"></i></span>
+                <select id="editModalProjectId" name="project_id" class="form-select border-start-0" required>
+                  <option value="">Select a project...</option>
+                  <%
+                    const groupedEdit = {};
+                    projects.forEach(function(p) {
+                      if (!groupedEdit[p.client_name]) groupedEdit[p.client_name] = [];
+                      groupedEdit[p.client_name].push(p);
+                    });
+                    Object.keys(groupedEdit).forEach(function(clientName) {
+                  %>
+                  <optgroup label="<%= clientName %>">
+                    <% groupedEdit[clientName].forEach(function(p) { %>
+                    <option value="<%= p.id %>"><%= p.client_name %> - <%= p.name %></option>
+                    <% }); %>
+                  </optgroup>
+                  <% }); %>
+                </select>
+              </div>
+              <div class="input-group mb-3">
+                <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-check2"></i></span>
+                <select id="editModalTaskId" name="task_id" class="form-select border-start-0">
+                  <option value="">Select a task...</option>
+                </select>
+              </div>
+              <textarea id="editModalDescription" name="description" class="form-control" rows="3"
+                        placeholder="Add log description..."></textarea>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label small text-muted fw-semibold text-uppercase ls-1">Duration</label>
+              <div class="input-group mb-3">
+                <span class="input-group-text bg-white text-muted"><i class="bi bi-hourglass-split"></i></span>
+                <input type="text" id="editModalDuration" name="hours" class="form-control"
+                       placeholder="hh:mm" required autocomplete="off" />
+              </div>
+              <div class="d-flex align-items-center gap-2 text-muted small">
+                <i class="bi bi-calendar3"></i>
+                <span><%= new Date(currentDate + 'T00:00:00').toLocaleDateString('en-GB', {day:'2-digit',month:'2-digit',year:'numeric'}) %></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary me-auto" data-bs-dismiss="modal">Dismiss</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-floppy me-1"></i>Save changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
-<% } else { %>
-<div class="table-responsive">
-  <table class="table table-hover align-middle">
-    <thead class="table-light">
-      <tr>
-        <th>Date</th>
-        <th>Client</th>
-        <th>Project</th>
-        <th>Task</th>
-        <th class="text-end">Hours</th>
-        <th>Description</th>
-        <th class="text-center">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% entries.forEach(e => { %>
-      <tr>
-        <td class="text-nowrap"><%= new Date(e.entry_date).toLocaleDateString() %></td>
-        <td><span class="badge bg-secondary-subtle text-secondary"><%= e.client_name %></span></td>
-        <td><%= e.project_name %></td>
-        <td><%= e.task_name || '—' %></td>
-        <td class="text-end fw-semibold"><%= parseFloat(e.hours).toFixed(2) %></td>
-        <td class="text-truncate" style="max-width:200px"><%= e.description || '' %></td>
-        <td class="text-center text-nowrap">
-          <a href="/hours/<%= e.id %>/edit" class="btn btn-sm btn-outline-secondary me-1">
-            <i class="bi bi-pencil"></i>
-          </a>
-          <form action="/hours/<%= e.id %>?_method=DELETE" method="POST" class="d-inline"
-                onsubmit="return confirm('Delete this entry?')">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-            <button type="submit" class="btn btn-sm btn-outline-danger">
-              <i class="bi bi-trash"></i>
-            </button>
-          </form>
-        </td>
-      </tr>
-      <% }) %>
-    </tbody>
-    <tfoot class="table-light">
-      <tr>
-        <td colspan="4" class="fw-bold text-end">Total</td>
-        <td class="text-end fw-bold text-primary"><%= totalHours %> h</td>
-        <td colspan="2"></td>
-      </tr>
-    </tfoot>
-  </table>
+
+<!-- JS config -->
+<script>
+  window.TS_CONFIG = {
+    projects:   <%- JSON.stringify(projects.map(function(p){ return { id: p.id, name: p.name, client_name: p.client_name }; })) %>,
+    weekDays:   <%- JSON.stringify(weekDays) %>,
+    nextRowIdx: <%= rows.length %>,
+    view:       '<%= view %>'
+  };
+  window.TS_CSRF = '<%= csrfToken %>';
+</script>
+
+<!-- Auto-save toast -->
+<div id="asToast" style="
+  position:fixed; bottom:1.5rem; right:1.5rem; z-index:9999;
+  display:none; align-items:center; gap:.6rem;
+  background:#198754; color:#fff;
+  padding:.55rem 1rem; border-radius:.5rem;
+  font-size:.85rem; font-weight:500;
+  box-shadow:0 4px 14px rgba(0,0,0,.25);
+  pointer-events:none; opacity:0; transition:opacity .2s;
+">
+  <i class="bi bi-check-circle-fill"></i>
+  <span id="asToastMsg">Saved</span>
 </div>
-<% } %>
 
 <%- include('../partials/footer') %>
+

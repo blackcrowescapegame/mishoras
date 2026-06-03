@@ -46,12 +46,20 @@
             <label for="project_id" class="form-label fw-semibold">Project <span class="text-danger">*</span></label>
             <select id="project_id" name="project_id" class="form-select" required>
               <option value="">-- Select project --</option>
-              <% projects.forEach(p => { %>
-              <option value="<%= p.id %>"
-                <%= (entry && entry.project_id === p.id) ? 'selected' : '' %>>
-                <%= p.client_name %> / <%= p.name %>
-              </option>
-              <% }) %>
+              <%
+                const groupedProjects = {};
+                projects.forEach(p => {
+                  if (!groupedProjects[p.client_name]) groupedProjects[p.client_name] = [];
+                  groupedProjects[p.client_name].push(p);
+                });
+                Object.keys(groupedProjects).forEach(clientName => {
+              %>
+              <optgroup label="<%= clientName %>">
+                <% groupedProjects[clientName].forEach(p => { %>
+                <option value="<%= p.id %>" <%= (entry && entry.project_id === p.id) ? 'selected' : '' %>><%= p.client_name %> - <%= p.name %></option>
+                <% }); %>
+              </optgroup>
+              <% }); %>
             </select>
           </div>
 

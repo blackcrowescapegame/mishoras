@@ -1,0 +1,414 @@
+<%- include('../partials/header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="fw-bold mb-0">Detailed View</h2>
+  <div class="dropdown">
+    <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-download me-1"></i>Download
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end">
+      <li>
+        <a class="dropdown-item" id="downloadExcelBtn" href="#">
+          <i class="bi bi-file-earmark-excel me-2 text-success"></i>Excel (.xlsx)
+        </a>
+      </li>
+      <li>
+        <a class="dropdown-item" id="downloadPdfBtn" href="#">
+          <i class="bi bi-file-earmark-pdf me-2 text-danger"></i>PDF
+        </a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<%- include('../partials/alerts') %>
+
+<!-- Filter bar -->
+<form method="GET" action="/hours/detailed" id="detailedFilterForm">
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body py-2 px-3">
+    <div class="row g-2 align-items-end">
+
+      <!-- Preset selector -->
+      <div class="col-auto">
+        <div class="dropdown">
+          <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+            <%
+              const presetLabels = {
+                today: 'Today', this_week: 'This week', this_month: 'This month',
+                last_week: 'Last week', last_month: 'Last month',
+                this_year: 'This year', custom: 'Custom'
+              };
+            %>
+            <%= presetLabels[preset] || 'This week' %>
+          </button>
+          <ul class="dropdown-menu">
+            <% ['today','this_week','this_month','last_week','last_month','this_year','custom'].forEach(function(p) { %>
+            <li>
+              <a class="dropdown-item <%= preset === p ? 'active' : '' %>"
+                 href="#" data-preset="<%= p %>"><%= presetLabels[p] %></a>
+            </li>
+            <% }) %>
+          </ul>
+        </div>
+        <input type="hidden" name="preset" id="presetInput" value="<%= preset %>" />
+      </div>
+
+      <!-- Custom date range (only visible for custom) -->
+      <div class="col-auto d-flex align-items-center gap-1" id="customRangeFields" style="<%= preset !== 'custom' ? 'display:none!important' : '' %>">
+        <input type="date" name="from" class="form-control form-control-sm" value="<%= from %>" style="width:140px" />
+        <span class="text-muted small">→</span>
+        <input type="date" name="to"   class="form-control form-control-sm" value="<%= to %>"   style="width:140px" />
+      </div>
+
+      <!-- Client filter -->
+      <div class="col-auto">
+        <select name="client_id" class="form-select form-select-sm" style="min-width:150px" id="clientFilter">
+          <option value="">All clients</option>
+          <% clients.forEach(function(c) { %>
+          <option value="<%= c.id %>" <%= filterClientId == c.id ? 'selected' : '' %>><%= c.name %></option>
+          <% }) %>
+        </select>
+      </div>
+
+      <!-- Project filter -->
+      <div class="col-auto">
+        <select name="project_id" class="form-select form-select-sm" style="min-width:170px" id="projectFilter">
+          <option value="">All projects</option>
+          <%
+            const groupedProj = {};
+            projects.forEach(function(p) {
+              if (!groupedProj[p.client_id]) groupedProj[p.client_id] = { label: p.client_name, items: [] };
+              groupedProj[p.client_id].items.push(p);
+            });
+            Object.values(groupedProj).forEach(function(g) {
+          %>
+          <optgroup label="<%= g.label %>" data-client-id="<%= g.items[0].client_id %>">
+            <% g.items.forEach(function(p) { %>
+            <option value="<%= p.id %>" data-client="<%= p.client_id %>"
+              <%= filterProjectId == p.id ? 'selected' : '' %>><%= p.name %></option>
+            <% }); %>
+          </optgroup>
+          <% }); %>
+        </select>
+      </div>
+
+      <% if (isAdmin) { %>
+      <!-- User filter (admin only) -->
+      <div class="col-auto">
+        <select name="user_id" class="form-select form-select-sm" style="min-width:150px">
+          <option value="">All users</option>
+          <% users.forEach(function(u) { %>
+          <option value="<%= u.id %>" <%= filterUserId == u.id ? 'selected' : '' %>><%= u.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <% } %>
+
+      <!-- Apply button -->
+      <div class="col-auto ms-auto">
+        <button type="submit" class="btn btn-sm btn-primary">
+          <i class="bi bi-funnel me-1"></i>Apply
+        </button>
+        <a href="/hours/detailed" class="btn btn-sm btn-outline-secondary ms-1">
+          <i class="bi bi-x"></i> Clear
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+</form>
+
+<!-- Results -->
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-bottom py-2 px-3 d-flex align-items-center justify-content-between">
+    <span class="small text-muted fw-semibold">
+      <%= entries.length %> entr<%= entries.length === 1 ? 'y' : 'ies' %>
+      &nbsp;·&nbsp;
+      <strong class="text-dark"><%= totalHours %></strong> total
+    </span>
+    <%
+      const fmt = function(ds) {
+        if (!ds) return '';
+        const d = new Date(ds + 'T00:00:00');
+        return d.getDate() + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()] + ' ' + d.getFullYear();
+      };
+    %>
+    <span class="small text-muted"><%= fmt(from) %> → <%= fmt(to) %></span>
+  </div>
+
+  <% if (!entries.length) { %>
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-clock" style="font-size:2.5rem;opacity:.3"></i>
+    <p class="fw-semibold mt-3 mb-1">No entries found for this period.</p>
+  </div>
+  <% } else { %>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle small">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-3">DATE</th>
+          <% if (isAdmin) { %><th>USER</th><% } %>
+          <th>CLIENT</th>
+          <th>PROJECT</th>
+          <th>TASK</th>
+          <th>DESCRIPTION</th>
+          <th class="text-end pe-3">DURATION</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% entries.forEach(function(e) { %>
+        <tr>
+          <td class="ps-3 text-nowrap text-muted">
+            <%
+              const ed = new Date((e.entry_date instanceof Date ? e.entry_date.toISOString() : String(e.entry_date)).slice(0,10) + 'T00:00:00');
+              const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+            %>
+            <span class="fw-semibold text-dark"><%= days[ed.getDay()] %></span>
+            <%= ed.getDate() %> <%= ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][ed.getMonth()] %>
+          </td>
+          <% if (isAdmin) { %><td class="text-muted"><%= e.user_name %></td><% } %>
+          <td><%= e.client_name %></td>
+          <td><%= e.project_name %></td>
+          <td><%- e.task_name ? e.task_name : '<span class="text-muted">—</span>' %></td>
+          <td class="text-muted fst-italic"><%= e.description || '' %></td>
+          <td class="text-end pe-3 fw-semibold"><%= e.hoursStr %></td>
+          <td class="text-end pe-2">
+            <div class="d-flex gap-1 justify-content-end">
+              <button type="button" class="btn btn-sm btn-outline-secondary dv-edit-btn py-0 px-1"
+                data-bs-toggle="modal" data-bs-target="#editTimeLogModal"
+                data-id="<%= e.id %>"
+                data-project-id="<%= e.project_id %>"
+                data-task-id="<%= e.task_id || '' %>"
+                data-task-name="<%= e.task_name || '' %>"
+                data-hours-str="<%= e.hoursStr %>"
+                data-date="<%= (e.entry_date instanceof Date ? e.entry_date.toISOString() : String(e.entry_date)).slice(0,10) %>"
+                data-description="<%= (e.description || '').replace(/"/g, '&quot;') %>"
+                title="Edit">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <form action="/hours/<%= e.id %>?_method=DELETE" method="POST" class="d-inline"
+                    onsubmit="return confirm('Delete this entry?')">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                <input type="hidden" name="_returnTo" value="/hours/detailed?<%= new URLSearchParams(Object.fromEntries(Object.entries({preset,from,to,client_id:filterClientId||'',project_id:filterProjectId||'',task_id:filterTaskId||'',user_id:filterUserId||''}).filter(([,v])=>v!==''&&v!==null))).toString() %>" />
+                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</div>
+
+<!-- Edit Time Log Modal (reused from day view) -->
+<div class="modal fade" id="editTimeLogModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-1">
+        <h5 class="modal-title fw-bold">Edit time log</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" id="editTimeLogForm" novalidate>
+        <input type="hidden" name="_method"    value="PUT" />
+        <input type="hidden" name="_csrf"      value="<%= csrfToken %>" />
+        <input type="hidden" name="entry_date" id="editEntryDate" value="" />
+        <input type="hidden" name="_returnTo"  id="editReturnTo" value="" />
+        <div class="modal-body pt-2">
+          <div class="row g-4">
+            <div class="col-md-7">
+              <label class="form-label small text-muted fw-semibold text-uppercase">Track on</label>
+              <div class="input-group mb-2">
+                <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-briefcase"></i></span>
+                <select id="editModalProjectId" name="project_id" class="form-select border-start-0" required>
+                  <option value="">Select a project...</option>
+                  <%
+                    const groupedEdit = {};
+                    projects.forEach(function(p) {
+                      if (!groupedEdit[p.client_name]) groupedEdit[p.client_name] = [];
+                      groupedEdit[p.client_name].push(p);
+                    });
+                    Object.keys(groupedEdit).forEach(function(clientName) {
+                  %>
+                  <optgroup label="<%= clientName %>">
+                    <% groupedEdit[clientName].forEach(function(p) { %>
+                    <option value="<%= p.id %>"><%= p.client_name %> - <%= p.name %></option>
+                    <% }); %>
+                  </optgroup>
+                  <% }); %>
+                </select>
+              </div>
+              <div class="input-group mb-3">
+                <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-check2"></i></span>
+                <select id="editModalTaskId" name="task_id" class="form-select border-start-0">
+                  <option value="">Select a task...</option>
+                </select>
+              </div>
+              <textarea id="editModalDescription" name="description" class="form-control" rows="3"
+                        placeholder="Add log description..."></textarea>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label small text-muted fw-semibold text-uppercase">Duration</label>
+              <div class="input-group mb-3">
+                <span class="input-group-text bg-white text-muted"><i class="bi bi-hourglass-split"></i></span>
+                <input type="text" id="editModalDuration" name="hours" class="form-control"
+                       placeholder="hh:mm" required autocomplete="off" />
+              </div>
+              <div class="d-flex align-items-center gap-2 text-muted small" id="editDateDisplay">
+                <i class="bi bi-calendar3"></i><span id="editDateLabel"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary me-auto" data-bs-dismiss="modal">Dismiss</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-floppy me-1"></i>Save changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  // Preset dropdown
+  document.querySelectorAll('[data-preset]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      const p = this.dataset.preset;
+      document.getElementById('presetInput').value = p;
+      const custom = document.getElementById('customRangeFields');
+      if (custom) custom.style.display = p === 'custom' ? '' : 'none';
+      if (p !== 'custom') document.getElementById('detailedFilterForm').submit();
+    });
+  });
+
+  // Client → filter projects in dropdown
+  const clientFilter  = document.getElementById('clientFilter');
+  const projectFilter = document.getElementById('projectFilter');
+  function applyClientFilter(cid) {
+    Array.from(projectFilter.querySelectorAll('optgroup')).forEach(function (og) {
+      const match = !cid || og.dataset.clientId === cid;
+      og.disabled = !match;
+      og.style.display = match ? '' : 'none';
+      // Also disable individual options so they can't be selected when group is hidden
+      Array.from(og.querySelectorAll('option')).forEach(function (o) { o.disabled = !match; });
+    });
+    // Clear selected project if it belongs to a different client
+    const sel = projectFilter.value;
+    if (sel) {
+      const selOpt = projectFilter.querySelector('option[value="' + sel + '"]');
+      if (selOpt && selOpt.disabled) projectFilter.value = '';
+    }
+  }
+  if (clientFilter && projectFilter) {
+    // Apply on page load (in case client filter is pre-selected)
+    applyClientFilter(clientFilter.value);
+    clientFilter.addEventListener('change', function () {
+      applyClientFilter(this.value);
+    });
+  }
+
+  // Edit modal
+  function fromHHMM(str) {
+    if (!str || !str.trim()) return 0;
+    const s = str.trim();
+    if (s.includes(':')) { const p = s.split(':'); return (parseInt(p[0])||0) + (parseInt(p[1])||0)/60; }
+    return parseFloat(s) || 0;
+  }
+  const editModal = document.getElementById('editTimeLogModal');
+  if (editModal) {
+    const editForm    = document.getElementById('editTimeLogForm');
+    const editProjSel = document.getElementById('editModalProjectId');
+    const editTaskSel = document.getElementById('editModalTaskId');
+    const editDesc    = document.getElementById('editModalDescription');
+    const editDur     = document.getElementById('editModalDuration');
+
+    editModal.addEventListener('show.bs.modal', function (event) {
+      const btn = event.relatedTarget;
+      editForm.action = '/hours/' + btn.dataset.id + '?_method=PUT';
+      editProjSel.value = btn.dataset.projectId || '';
+      editDesc.value    = btn.dataset.description || '';
+      editDur.value     = btn.dataset.hoursStr || '';
+      editDur.classList.remove('is-invalid');
+      document.getElementById('editEntryDate').value = btn.dataset.date || '';
+      document.getElementById('editReturnTo').value  = window.location.href;
+      const dl = document.getElementById('editDateLabel');
+      if (dl) dl.textContent = btn.dataset.date || '';
+
+      editTaskSel.innerHTML = '<option value="">Select a task...</option>';
+      const pid = btn.dataset.projectId;
+      const tid = btn.dataset.taskId;
+      if (pid) {
+        fetch('/hours/api/tasks/' + pid)
+          .then(function (r) { return r.json(); })
+          .then(function (tasks) {
+            tasks.forEach(function (t) {
+              const opt = document.createElement('option');
+              opt.value = t.id; opt.textContent = t.name;
+              if (tid && String(t.id) === String(tid)) opt.selected = true;
+              editTaskSel.appendChild(opt);
+            });
+          }).catch(function(){});
+      }
+    });
+
+    editModal.addEventListener('hidden.bs.modal', function () {
+      editForm.reset();
+      editTaskSel.innerHTML = '<option value="">Select a task...</option>';
+      editDur.classList.remove('is-invalid');
+    });
+
+    editProjSel.addEventListener('change', function () {
+      editTaskSel.innerHTML = '<option value="">Select a task...</option>';
+      if (!this.value) return;
+      fetch('/hours/api/tasks/' + this.value)
+        .then(function(r){return r.json();})
+        .then(function(tasks){
+          tasks.forEach(function(t){
+            const opt=document.createElement('option');
+            opt.value=t.id; opt.textContent=t.name;
+            editTaskSel.appendChild(opt);
+          });
+        }).catch(function(){});
+    });
+
+    editForm.addEventListener('submit', function (e) {
+      const dec = fromHHMM(editDur.value);
+      if (dec <= 0) { e.preventDefault(); editDur.classList.add('is-invalid'); editDur.focus(); return; }
+      editDur.classList.remove('is-invalid');
+      editDur.value = dec.toFixed(4);
+    });
+  }
+})();
+
+// ── Download buttons: build URL from current filter form values ──────────────
+(function () {
+  function buildDownloadUrl(fmt) {
+    const form = document.getElementById('detailedFilterForm');
+    const params = new URLSearchParams();
+    params.set('preset', form.preset ? form.preset.value : 'this_week');
+    if (form.from && form.from.value) params.set('from', form.from.value);
+    if (form.to   && form.to.value)   params.set('to',   form.to.value);
+    if (form.client_id  && form.client_id.value)  params.set('client_id',  form.client_id.value);
+    if (form.project_id && form.project_id.value) params.set('project_id', form.project_id.value);
+    if (form.task_id    && form.task_id.value)     params.set('task_id',    form.task_id.value);
+    if (form.user_id    && form.user_id.value)     params.set('user_id',    form.user_id.value);
+    return '/hours/detailed/' + fmt + '?' + params.toString();
+  }
+  const excelBtn = document.getElementById('downloadExcelBtn');
+  const pdfBtn   = document.getElementById('downloadPdfBtn');
+  if (excelBtn) excelBtn.addEventListener('click', function (e) { e.preventDefault(); window.location.href = buildDownloadUrl('excel'); });
+  if (pdfBtn)   pdfBtn.addEventListener('click',   function (e) { e.preventDefault(); window.location.href = buildDownloadUrl('pdf');   });
+})();
+</script>
+
+<%- include('../partials/footer') %>

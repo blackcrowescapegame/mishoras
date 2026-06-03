@@ -60,6 +60,14 @@ const User = {
       .input('password', sql.NVarChar, password)
       .query(`UPDATE users SET password = @password, updated_at = SYSUTCDATETIME() WHERE id = @id`);
   },
+
+  async updateProfile(id, { name }) {
+    const pool = await getPool();
+    await pool.request()
+      .input('id', sql.Int, id)
+      .input('name', sql.NVarChar, name)
+      .query(`UPDATE users SET name = @name, updated_at = SYSUTCDATETIME() WHERE id = @id`);
+  },
 };
 
 module.exports = User;

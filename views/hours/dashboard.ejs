@@ -1,0 +1,557 @@
+<%- include('../partials/header') %>
+<%
+/* ── URL builder: preserves current state + applies overrides ── */
+function buildUrl(overrides) {
+  const p = {};
+  if (preset !== 'custom') {
+    p.year  = navYear;
+    p.month = navMonth;
+  } else {
+    p.preset = 'custom';
+    p.from   = from;
+    p.to     = to;
+  }
+  p.sum_by = sumBy;
+  if (showActivity)                p.activity   = '1';
+  if (isAdmin && filterUserId)     p.user_id    = filterUserId;
+  if (filterClientId)              p.client_id  = filterClientId;
+  if (filterProjectId)             p.project_id = filterProjectId;
+  Object.assign(p, overrides);
+  // Remove keys set to null/undefined by overrides
+  Object.keys(p).forEach(function(k) { if (p[k] == null) delete p[k]; });
+  return '/hours/dashboard?' + Object.entries(p)
+    .map(function(e) { return encodeURIComponent(e[0]) + '=' + encodeURIComponent(e[1]); })
+    .join('&');
+}
+const SUM_BY_LABELS = {
+  projects_tasks:   'Projects & tasks',
+  projects_users:   'Projects & users',
+  clients_projects: 'Clients & projects',
+};
+const nowDate = new Date();
+%>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="fw-bold mb-0">Dashboard</h2>
+  <div class="dropdown">
+    <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-download me-1"></i>Download
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end">
+      <li>
+        <a class="dropdown-item" id="dashDownloadExcel" href="#">
+          <i class="bi bi-file-earmark-excel me-2 text-success"></i>Excel (.xlsx)
+        </a>
+      </li>
+      <li>
+        <a class="dropdown-item" id="dashDownloadPdf" href="#">
+          <i class="bi bi-file-earmark-pdf me-2 text-danger"></i>PDF
+        </a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<%- include('../partials/alerts') %>
+
+<!-- ── Filter bar ───────────────────────────────────────────────────────── -->
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body py-2 px-3 d-flex flex-column gap-2">
+    <!-- Row 1: period + view controls -->
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+
+      <!-- Period type dropdown -->
+      <div class="dropdown">
+        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+          <%= preset === 'custom' ? 'Custom' : 'Month' %>
+        </button>
+        <ul class="dropdown-menu">
+          <li>
+            <a class="dropdown-item <%= preset !== 'custom' ? 'active' : '' %>"
+               href="<%- buildUrl({ year: nowDate.getFullYear(), month: nowDate.getMonth()+1, preset: null, from: null, to: null }) %>">
+              This month
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item <%= preset === 'custom' ? 'active' : '' %>"
+               href="<%- buildUrl({ preset: 'custom', from: from, to: to, year: null, month: null }) %>">
+              Custom range
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <% if (preset !== 'custom') { %>
+      <!-- Month navigation -->
+      <div class="d-flex align-items-center gap-1">
+        <a href="<%- prevLink %>" class="btn btn-sm btn-outline-secondary px-2">
+          <i class="bi bi-chevron-left"></i>
+        </a>
+        <span class="px-2 fw-semibold text-nowrap" style="min-width:140px;text-align:center">
+          <%= displayPeriod %>
+        </span>
+        <a href="<%- nextLink %>" class="btn btn-sm btn-outline-secondary px-2">
+          <i class="bi bi-chevron-right"></i>
+        </a>
+      </div>
+      <% } else { %>
+      <!-- Custom date range form -->
+      <form method="GET" action="/hours/dashboard" class="d-flex align-items-center gap-1">
+        <input type="hidden" name="preset"   value="custom" />
+        <input type="hidden" name="sum_by"   value="<%= sumBy %>" />
+        <% if (showActivity) { %><input type="hidden" name="activity" value="1" /><% } %>
+        <% if (isAdmin && filterUserId) { %><input type="hidden" name="user_id" value="<%= filterUserId %>" /><% } %>
+        <input type="date" name="from" class="form-control form-control-sm" value="<%= from %>" style="width:140px" />
+        <span class="text-muted small">→</span>
+        <input type="date" name="to"   class="form-control form-control-sm" value="<%= to %>"   style="width:140px" />
+        <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+      </form>
+      <% } %>
+
+      <!-- Sum by dropdown -->
+      <div class="dropdown">
+        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+          <i class="bi bi-layers me-1"></i>Sum by: <strong><%= SUM_BY_LABELS[sumBy] %></strong>
+        </button>
+        <ul class="dropdown-menu">
+          <% ['projects_tasks','projects_users','clients_projects'].forEach(function(opt) { %>
+          <li>
+            <a class="dropdown-item <%= sumBy === opt ? 'active' : '' %>"
+               href="<%- buildUrl({ sum_by: opt }) %>">
+              <%= SUM_BY_LABELS[opt] %>
+            </a>
+          </li>
+          <% }) %>
+        </ul>
+      </div>
+
+      <!-- Show activity toggle -->
+      <a href="<%- buildUrl({ activity: showActivity ? null : '1' }) %>"
+         class="btn btn-sm <%= showActivity ? 'btn-secondary' : 'btn-outline-secondary' %>">
+        <i class="bi bi-bar-chart-line me-1"></i>Show activity
+      </a>
+    </div>
+
+    <!-- Row 2: entity filter dropdowns (same button style as row 1) -->
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <%
+        const selClient  = clients.find(function(c) { return c.id == filterClientId; });
+        const selProject = projects.find(function(p) { return p.id == filterProjectId; });
+        const selUser    = users.find(function(u)    { return u.id == filterUserId;    });
+        const visibleProjects = filterClientId
+          ? projects.filter(function(p) { return p.client_id == filterClientId; })
+          : projects;
+      %>
+
+      <!-- Client -->
+      <div class="dropdown">
+        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+          <%= selClient ? selClient.name : 'All clients' %>
+        </button>
+        <ul class="dropdown-menu">
+          <li><a class="dropdown-item <%= !filterClientId ? 'active' : '' %>" href="<%- buildUrl({ client_id: null, project_id: null }) %>">All clients</a></li>
+          <% if (clients.length) { %><li><hr class="dropdown-divider" /></li><% } %>
+          <% clients.forEach(function(c) { %>
+          <li><a class="dropdown-item <%= filterClientId == c.id ? 'active' : '' %>" href="<%- buildUrl({ client_id: c.id, project_id: null }) %>"><%= c.name %></a></li>
+          <% }) %>
+        </ul>
+      </div>
+
+      <!-- Project (server-filtered by selected client) -->
+      <div class="dropdown">
+        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+          <%= selProject ? selProject.name : 'All projects' %>
+        </button>
+        <ul class="dropdown-menu">
+          <li><a class="dropdown-item <%= !filterProjectId ? 'active' : '' %>" href="<%- buildUrl({ project_id: null }) %>">All projects</a></li>
+          <% if (visibleProjects.length) { %><li><hr class="dropdown-divider" /></li><% } %>
+          <% visibleProjects.forEach(function(p) { %>
+          <li><a class="dropdown-item <%= filterProjectId == p.id ? 'active' : '' %>" href="<%- buildUrl({ project_id: p.id, client_id: p.client_id }) %>"><%= p.name %></a></li>
+          <% }) %>
+          <% if (filterClientId && visibleProjects.length === 0) { %>
+          <li><span class="dropdown-item text-muted">No projects</span></li>
+          <% } %>
+        </ul>
+      </div>
+
+      <% if (isAdmin && users.length) { %>
+      <!-- User (admin only) -->
+      <div class="dropdown">
+        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+          <%= selUser ? selUser.name : 'All users' %>
+        </button>
+        <ul class="dropdown-menu">
+          <li><a class="dropdown-item <%= !filterUserId ? 'active' : '' %>" href="<%- buildUrl({ user_id: null }) %>">All users</a></li>
+          <li><hr class="dropdown-divider" /></li>
+          <% users.forEach(function(u) { %>
+          <li><a class="dropdown-item <%= filterUserId == u.id ? 'active' : '' %>" href="<%- buildUrl({ user_id: u.id }) %>"><%= u.name %></a></li>
+          <% }) %>
+        </ul>
+      </div>
+      <% } %>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Summary stats ────────────────────────────────────────────────────── -->
+<div class="row mb-4">
+  <div class="col-auto">
+    <p class="text-muted small mb-1">Total hours</p>
+    <p class="fs-3 fw-bold mb-0"><%= totalHoursStr %></p>
+  </div>
+</div>
+
+<!-- ── Activity (conditional) ───────────────────────────────────────────── -->
+<% if (showActivity) { %>
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
+    <h5 class="mb-0 fw-semibold">Activity</h5>
+    <div class="btn-group btn-group-sm" id="actTabGroup">
+      <button class="btn btn-outline-secondary active" data-tab="day">Day</button>
+      <button class="btn btn-outline-secondary" data-tab="week">Week</button>
+      <button class="btn btn-outline-secondary" data-tab="month">Month</button>
+    </div>
+  </div>
+  <div class="card-body">
+    <canvas id="activityChart" style="max-height:220px"></canvas>
+  </div>
+</div>
+<% } %>
+
+<!-- ── Distribution ─────────────────────────────────────────────────────── -->
+<h5 class="fw-semibold mb-3">Distribution</h5>
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <h6 class="fw-semibold text-muted mb-3">Hours</h6>
+    <div class="row g-4">
+
+      <!-- Donut 1 -->
+      <div class="col-lg-6">
+        <p class="text-muted small fw-semibold mb-2 text-uppercase"><%= donut1Label %></p>
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+          <div style="width:200px;height:200px;flex-shrink:0;position:relative">
+            <canvas id="donut1Chart"></canvas>
+          </div>
+          <ul class="list-unstyled mb-0 small" id="donut1Legend">
+            <% donut1.forEach(function(d, i) { %>
+            <li class="mb-2 d-flex align-items-start gap-2">
+              <span class="dash-legend-color mt-1" style="display:inline-block;width:12px;height:12px;border-radius:3px;flex-shrink:0" data-palette-idx="<%= i %>"></span>
+              <span>
+                <%= d.label.length > 30 ? d.label.slice(0,28)+'…' : d.label %>
+                – <%= d.value.toFixed(2) %> H
+                <% if (totalHoursDecimal > 0) { %>
+                (<%= Math.round(d.value / totalHoursDecimal * 100) %>%)
+                <% } %>
+              </span>
+            </li>
+            <% }) %>
+            <% if (donut1.length === 0) { %><li class="text-muted">No data</li><% } %>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Donut 2 -->
+      <div class="col-lg-6">
+        <p class="text-muted small fw-semibold mb-2 text-uppercase"><%= donut2Label %></p>
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+          <div style="width:200px;height:200px;flex-shrink:0;position:relative">
+            <canvas id="donut2Chart"></canvas>
+          </div>
+          <ul class="list-unstyled mb-0 small" id="donut2Legend">
+            <% donut2.forEach(function(d, i) { %>
+            <li class="mb-2 d-flex align-items-start gap-2">
+              <span class="dash-legend-color mt-1" style="display:inline-block;width:12px;height:12px;border-radius:3px;flex-shrink:0" data-palette-idx="<%= i %>"></span>
+              <span>
+                <%= d.label.length > 30 ? d.label.slice(0,28)+'…' : d.label %>
+                – <%= d.value.toFixed(2) %> H
+                <% if (totalHoursDecimal > 0) { %>
+                (<%= Math.round(d.value / totalHoursDecimal * 100) %>%)
+                <% } %>
+              </span>
+            </li>
+            <% }) %>
+            <% if (donut2.length === 0) { %><li class="text-muted">No data</li><% } %>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── Summary table ─────────────────────────────────────────────────────── -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-0">
+    <table class="table table-sm table-hover mb-0 align-middle">
+      <thead class="border-bottom">
+        <tr class="text-uppercase small text-muted">
+          <th class="ps-3 py-2 fw-semibold"><%= tableHeader %></th>
+          <th class="text-end py-2 fw-semibold">Total Hours</th>
+          <th class="text-end pe-3 py-2 fw-semibold">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% groups.forEach(function(g, gi) { %>
+        <tr class="dash-group-row" data-gidx="<%= gi %>" style="cursor:pointer" role="button">
+          <td class="ps-3">
+            <i class="bi bi-chevron-right dash-toggle-icon me-2 text-muted small" data-gidx="<%= gi %>"></i>
+            <strong><%= g.name %></strong>
+          </td>
+          <td class="text-end fw-semibold"><%= g.totalHoursStr %> H</td>
+          <td class="text-end pe-3">
+            <a href="<%= g.detailLink %>" class="small text-primary">Detailed report</a>
+          </td>
+        </tr>
+        <% g.subs.forEach(function(s) { %>
+        <tr class="dash-sub-row" data-parent="<%= gi %>" style="display:none">
+          <td class="ps-5 text-muted"><%= s.name %></td>
+          <td class="text-end text-muted"><%= s.hoursStr %> H</td>
+          <td class="text-end pe-3">
+            <a href="<%= s.detailLink %>" class="small text-primary">Detailed report</a>
+          </td>
+        </tr>
+        <% }) %>
+        <% }) %>
+        <% if (groups.length === 0) { %>
+        <tr>
+          <td colspan="3" class="text-center text-muted py-5">
+            <i class="bi bi-inbox fs-3 d-block mb-2"></i>No entries for this period.
+          </td>
+        </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var PALETTE = [
+    '#10b981','#3b82f6','#14b8a6','#8b5cf6','#f59e0b',
+    '#ef4444','#06b6d4','#84cc16','#f97316','#ec4899',
+    '#6366f1','#0891b2','#059669','#7c3aed','#dc2626'
+  ];
+
+  // Apply palette colours to legend dots
+  document.querySelectorAll('.dash-legend-color').forEach(function (el) {
+    el.style.backgroundColor = PALETTE[parseInt(el.dataset.paletteIdx, 10) % PALETTE.length];
+  });
+
+  var totalH = <%- totalHoursDecimal %>;
+
+  // ── Donut chart factory ─────────────────────────────────────────────────
+  function makeDonut(canvasId, data) {
+    var canvas = document.getElementById(canvasId);
+    if (!canvas || !data.length) return;
+    new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: data.map(function (d) { return d.label; }),
+        datasets: [{
+          data: data.map(function (d) { return d.value; }),
+          backgroundColor: data.map(function (_, i) { return PALETTE[i % PALETTE.length]; }),
+          borderWidth: 2,
+          borderColor: '#ffffff',
+          hoverOffset: 8,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        cutout: '65%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function (ctx) {
+                var pct = totalH > 0 ? Math.round(ctx.parsed / totalH * 100) : 0;
+                return ' ' + ctx.parsed.toFixed(2) + ' H (' + pct + '%)';
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  makeDonut('donut1Chart', <%- JSON.stringify(donut1) %>);
+  makeDonut('donut2Chart', <%- JSON.stringify(donut2) %>);
+
+  // ── Activity chart ──────────────────────────────────────────────────────
+<% if (showActivity) { %>
+  var activityByDay = <%- activityByDay %>;
+  var fromStr = '<%- from %>';
+  var toStr   = '<%- to %>';
+
+  function genDays(f, t) {
+    var days = [], d = new Date(f + 'T00:00:00'), end = new Date(t + 'T00:00:00');
+    while (d <= end) { days.push(d.toISOString().slice(0, 10)); d.setDate(d.getDate() + 1); }
+    return days;
+  }
+
+  var allDays   = genDays(fromStr, toStr);
+  var MS        = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var DS        = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  // Day granularity
+  var dayLabels = allDays.map(function (d) {
+    var dt = new Date(d + 'T00:00:00');
+    return DS[dt.getDay()] + ', ' + dt.getDate() + '\n' + MS[dt.getMonth()];
+  });
+  var dayValues = allDays.map(function (d) { return activityByDay[d] || 0; });
+
+  // Week granularity
+  function monOf(ds) {
+    var d = new Date(ds + 'T00:00:00'), day = d.getDay();
+    d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+    return d.toISOString().slice(0, 10);
+  }
+  var wkMap = new Map();
+  allDays.forEach(function (d) {
+    var wk = monOf(d);
+    wkMap.set(wk, (wkMap.get(wk) || 0) + (activityByDay[d] || 0));
+  });
+  var weekLabels = [], weekValues = [];
+  wkMap.forEach(function (v, k) {
+    var dt = new Date(k + 'T00:00:00');
+    weekLabels.push(DS[1] + ', ' + dt.getDate() + '\n' + MS[dt.getMonth()]);
+    weekValues.push(parseFloat(v.toFixed(2)));
+  });
+
+  // Month granularity
+  var moMap = new Map();
+  allDays.forEach(function (d) {
+    var mk = d.slice(0, 7);
+    moMap.set(mk, (moMap.get(mk) || 0) + (activityByDay[d] || 0));
+  });
+  var monthLabels = [], monthValues = [];
+  moMap.forEach(function (v, k) {
+    var parts = k.split('-');
+    monthLabels.push(MS[parseInt(parts[1], 10) - 1] + ' ' + parts[0]);
+    monthValues.push(parseFloat(v.toFixed(2)));
+  });
+
+  function calcAvg(vals) {
+    var nz = vals.filter(function (v) { return v > 0; });
+    return nz.length ? parseFloat((nz.reduce(function (s, v) { return s + v; }, 0) / nz.length).toFixed(2)) : 0;
+  }
+
+  // Custom plugin: draw dashed average line
+  var avgLinePlugin = {
+    id: 'avgLine',
+    afterDraw: function (chart) {
+      var avg = chart.options.plugins.avgLine && chart.options.plugins.avgLine.value;
+      if (!avg) return;
+      var ctx   = chart.ctx;
+      var yAxis = chart.scales.y;
+      var xAxis = chart.scales.x;
+      var y     = yAxis.getPixelForValue(avg);
+      ctx.save();
+      ctx.beginPath();
+      ctx.setLineDash([6, 4]);
+      ctx.strokeStyle = '#4b5563';
+      ctx.lineWidth   = 1.5;
+      ctx.moveTo(xAxis.left,  y);
+      ctx.lineTo(xAxis.right, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#4b5563';
+      ctx.font      = '11px sans-serif';
+      ctx.fillText(avg.toFixed(1) + ' avg. hours', xAxis.left + 6, y - 5);
+      ctx.restore();
+    }
+  };
+
+  var actCtx   = document.getElementById('activityChart');
+  var actChart = null;
+
+  function buildActivityChart(tab) {
+    var labels = tab === 'day' ? dayLabels : tab === 'week' ? weekLabels : monthLabels;
+    var values = tab === 'day' ? dayValues : tab === 'week' ? weekValues : monthValues;
+    var avg    = calcAvg(values);
+    if (actChart) actChart.destroy();
+    actChart = new Chart(actCtx, {
+      type: 'bar',
+      plugins: [avgLinePlugin],
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Hours',
+          data: values,
+          backgroundColor: '#1a56db',
+          borderRadius: 3,
+          barPercentage: 0.55,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: { display: false },
+          avgLine: { value: avg },
+          tooltip: {
+            callbacks: {
+              label: function (ctx) { return ' ' + ctx.parsed.y.toFixed(2) + ' H'; }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+          y: { beginAtZero: true, grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 } } }
+        }
+      }
+    });
+  }
+
+  buildActivityChart('day');
+
+  document.getElementById('actTabGroup').addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-tab]');
+    if (!btn) return;
+    document.querySelectorAll('#actTabGroup [data-tab]').forEach(function (b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    buildActivityChart(btn.dataset.tab);
+  });
+<% } %>
+
+  // ── Row expand / collapse ───────────────────────────────────────────────
+  document.querySelectorAll('.dash-group-row').forEach(function (row) {
+    row.addEventListener('click', function (e) {
+      if (e.target.closest('a')) return; // Don't toggle when clicking a link
+      var gi   = this.dataset.gidx;
+      var subs = document.querySelectorAll('.dash-sub-row[data-parent="' + gi + '"]');
+      var icon = this.querySelector('.dash-toggle-icon');
+      var open = icon.classList.contains('bi-chevron-down');
+      subs.forEach(function (s) { s.style.display = open ? 'none' : ''; });
+      icon.classList.toggle('bi-chevron-down',  !open);
+      icon.classList.toggle('bi-chevron-right',  open);
+    });
+  });
+
+  // ── Download buttons ────────────────────────────────────────────────────
+  var dashFrom = '<%- from %>';
+  var dashTo   = '<%- to %>';
+<% if (isAdmin && filterUserId) { %>
+  var dashUserId = '<%- filterUserId %>';
+<% } else { %>
+  var dashUserId = null;
+<% } %>
+
+  function dashDownloadUrl(fmt) {
+    var url = '/hours/detailed/' + fmt + '?preset=custom&from=' + dashFrom + '&to=' + dashTo;
+    if (dashUserId) url += '&user_id=' + dashUserId;
+    return url;
+  }
+  var exBtn = document.getElementById('dashDownloadExcel');
+  var pdBtn = document.getElementById('dashDownloadPdf');
+  if (exBtn) exBtn.addEventListener('click', function (e) { e.preventDefault(); window.location.href = dashDownloadUrl('excel'); });
+  if (pdBtn) pdBtn.addEventListener('click', function (e) { e.preventDefault(); window.location.href = dashDownloadUrl('pdf');   });
+
+})();
+</script>
+
+<%- include('../partials/footer') %>
