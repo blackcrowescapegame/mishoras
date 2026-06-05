@@ -127,7 +127,6 @@ document.addEventListener('DOMContentLoaded', function () {
       const projectSel = rowEl.querySelector('.ts-project-select');
       const taskSel    = rowEl.querySelector('.ts-task-select');
       if (projectSel) {
-      if (projectSel) {
         projectSel.addEventListener('change', function () {
           loadTasks(projectSel, taskSel, null);
           sortTsRows();
