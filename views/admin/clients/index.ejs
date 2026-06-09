@@ -1,32 +1,68 @@
 <%- include('../../partials/header') %>
 
+<%
+  function sortUrl(col) {
+    const newDir = (sort === col && dir === 'asc') ? 'desc' : 'asc';
+    return '?sort=' + col + '&dir=' + newDir + '&page=1' + (q ? '&q=' + encodeURIComponent(q) : '');
+  }
+  function sortIcon(col) {
+    if (sort !== col) return '<i class="bi bi-arrow-down-up text-muted opacity-50 ms-1 small"></i>';
+    return dir === 'asc'
+      ? '<i class="bi bi-arrow-up ms-1 small text-primary"></i>'
+      : '<i class="bi bi-arrow-down ms-1 small text-primary"></i>';
+  }
+%>
+
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h2 class="fw-bold mb-0"><i class="bi bi-building me-2 text-success"></i>Clients</h2>
+  <h2 class="fw-bold mb-0">
+    <i class="bi bi-building me-2 text-success"></i>Clientes
+    <span class="badge bg-secondary fs-6 fw-normal ms-2"><%= total %></span>
+  </h2>
   <a href="/admin/clients/new" class="btn btn-primary">
-    <i class="bi bi-plus-circle me-1"></i>New Client
+    <i class="bi bi-plus-circle me-1"></i>Nuevo cliente
   </a>
 </div>
 
 <%- include('../../partials/alerts') %>
+
+<div class="input-group mb-3" style="max-width:420px">
+  <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+  <input type="text" id="gridSearch" class="form-control border-start-0"
+         placeholder="Buscar por nombre, contacto, email, ID..."
+         value="<%= q %>" autocomplete="off" />
+  <% if (q) { %>
+  <a href="?sort=<%= sort %>&dir=<%= dir %>&page=1" class="btn btn-outline-secondary" title="Limpiar búsqueda">
+    <i class="bi bi-x"></i>
+  </a>
+  <% } %>
+</div>
 
 <div class="card border-0 shadow-sm">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
       <thead class="table-light">
         <tr>
-          <th>#</th><th>Name</th><th>Description</th><th>Status</th>
-          <th>Created</th><th class="text-center">Actions</th>
+          <th><a href="<%- sortUrl('name') %>" class="text-decoration-none text-dark">Nombre<%- sortIcon('name') %></a></th>
+          <th><a href="<%- sortUrl('custom_id') %>" class="text-decoration-none text-dark">ID Pers.<%- sortIcon('custom_id') %></a></th>
+          <th><a href="<%- sortUrl('contact_person') %>" class="text-decoration-none text-dark">Contacto<%- sortIcon('contact_person') %></a></th>
+          <th><a href="<%- sortUrl('email') %>" class="text-decoration-none text-dark">Email<%- sortIcon('email') %></a></th>
+          <th><a href="<%- sortUrl('phone') %>" class="text-decoration-none text-dark">Teléfono<%- sortIcon('phone') %></a></th>
+          <th><a href="<%- sortUrl('active') %>" class="text-decoration-none text-dark">Estado<%- sortIcon('active') %></a></th>
+          <th><a href="<%- sortUrl('created_at') %>" class="text-decoration-none text-dark">Creado<%- sortIcon('created_at') %></a></th>
+          <th class="text-center">Acciones</th>
         </tr>
       </thead>
       <tbody>
         <% clients.forEach(c => { %>
         <tr>
-          <td class="text-muted small"><%= c.id %></td>
-          <td><%= c.name %></td>
-          <td class="text-muted small text-truncate" style="max-width:250px"><%= c.description || '—' %></td>
+          <td><strong><%= c.name %></strong></td>
+          <td class="text-muted small"><%= c.custom_id || '—' %></td>
+          <td class="small"><%= c.contact_person || '—' %></td>
+          <td class="small"><%- c.email ? `<a href="mailto:${c.email}">${c.email}</a>` : '—' %></td>
+          <td class="small"><%= c.phone || '—' %></td>
           <td>
             <span class="badge <%= c.active ? 'bg-success' : 'bg-secondary' %>">
-              <%= c.active ? 'Active' : 'Inactive' %>
+              <%= c.active ? 'Activo' : 'Inactivo' %>
             </span>
           </td>
           <td class="small text-muted"><%= new Date(c.created_at).toLocaleDateString() %></td>
@@ -35,7 +71,7 @@
               <i class="bi bi-pencil"></i>
             </a>
             <form action="/admin/clients/<%= c.id %>?_method=DELETE" method="POST" class="d-inline"
-                  onsubmit="return confirm('Deactivate this client?')">
+                  onsubmit="return confirm('¿Desactivar este cliente?')">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
               <button type="submit" class="btn btn-sm btn-outline-danger">
                 <i class="bi bi-trash"></i>
@@ -45,11 +81,58 @@
         </tr>
         <% }) %>
         <% if (!clients.length) { %>
-        <tr><td colspan="6" class="text-center text-muted py-4">No clients found.</td></tr>
+        <tr><td colspan="8" class="text-center text-muted py-4">No se encontraron clientes.</td></tr>
         <% } %>
       </tbody>
     </table>
   </div>
+
+  <% if (totalPages > 1) { %>
+  <div class="card-footer bg-white d-flex justify-content-between align-items-center py-2">
+    <small class="text-muted">
+      Mostrando <%= (page - 1) * 10 + 1 %>–<%= Math.min(page * 10, total) %> de <%= total %> clientes
+    </small>
+    <nav>
+      <ul class="pagination pagination-sm mb-0">
+        <li class="page-item <%= page <= 1 ? 'disabled' : '' %>">
+          <a class="page-link" href="?page=<%= page - 1 %>&sort=<%= sort %>&dir=<%= dir %><%= q ? '&q=' + encodeURIComponent(q) : '' %>">
+            <i class="bi bi-chevron-left"></i>
+          </a>
+        </li>
+        <% for (let p = 1; p <= totalPages; p++) { %>
+          <% if (totalPages <= 7 || p === 1 || p === totalPages || (p >= page - 2 && p <= page + 2)) { %>
+          <li class="page-item <%= p === page ? 'active' : '' %>">
+            <a class="page-link" href="?page=<%= p %>&sort=<%= sort %>&dir=<%= dir %><%= q ? '&q=' + encodeURIComponent(q) : '' %>"><%= p %></a>
+          </li>
+          <% } else if (p === page - 3 || p === page + 3) { %>
+          <li class="page-item disabled"><span class="page-link">…</span></li>
+          <% } %>
+        <% } %>
+        <li class="page-item <%= page >= totalPages ? 'disabled' : '' %>">
+          <a class="page-link" href="?page=<%= page + 1 %>&sort=<%= sort %>&dir=<%= dir %><%= q ? '&q=' + encodeURIComponent(q) : '' %>">
+            <i class="bi bi-chevron-right"></i>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+  <% } %>
 </div>
 
 <%- include('../../partials/footer') %>
+<script>
+(function(){
+  const inp = document.getElementById('gridSearch');
+  if (!inp) return;
+  let timer;
+  inp.addEventListener('input', function(){
+    clearTimeout(timer);
+    timer = setTimeout(function(){
+      const q = inp.value.trim();
+      window.location.href = '?sort=<%= sort %>&dir=<%= dir %>&page=1' + (q ? '&q=' + encodeURIComponent(q) : '');
+    }, 350);
+  });
+  inp.focus();
+  inp.setSelectionRange(inp.value.length, inp.value.length);
+})();
+</script>

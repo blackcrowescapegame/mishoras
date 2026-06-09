@@ -1,7 +1,7 @@
 <%- include('../../partials/header') %>
 
 <div class="row justify-content-center">
-  <div class="col-lg-6">
+  <div class="col-lg-8">
     <div class="card border-0 shadow-sm">
       <div class="card-body p-4">
         <h2 class="fw-bold mb-4">
@@ -16,48 +16,88 @@
           <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
 
           <div class="mb-3">
-            <label for="name" class="form-label fw-semibold">Name <span class="text-danger">*</span></label>
+            <label for="name" class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
             <input type="text" id="name" name="name" class="form-control"
                    value="<%= item ? item.name : '' %>" required />
           </div>
 
-          <div class="mb-3">
-            <label for="project_id" class="form-label fw-semibold">Project <span class="text-danger">*</span></label>
-            <select id="project_id" name="project_id" class="form-select" required>
-              <option value="">-- Select project --</option>
-              <% projects.forEach(p => { %>
-              <option value="<%= p.id %>" <%= (item && item.project_id === p.id) ? 'selected' : '' %>>
-                <%= p.client_name %> / <%= p.name %>
-              </option>
-              <% }) %>
-            </select>
+          <div class="row mb-3">
+            <div class="col-sm-4">
+              <label for="hourly_rate" class="form-label fw-semibold">Tarifa por hora</label>
+              <input type="number" id="hourly_rate" name="hourly_rate" class="form-control"
+                     min="0" step="0.01"
+                     value="<%= item && item.hourly_rate != null ? item.hourly_rate : '' %>" />
+            </div>
+            <div class="col-sm-4 d-flex align-items-end pb-1">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="billable_by_default"
+                       name="billable_by_default" value="1"
+                       <%= (!item || item.billable_by_default) ? 'checked' : '' %> />
+                <label class="form-check-label fw-semibold" for="billable_by_default">Facturable por defecto</label>
+              </div>
+            </div>
+            <div class="col-sm-4 d-flex align-items-end pb-1">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="add_to_new_projects"
+                       name="add_to_new_projects" value="1"
+                       <%= (item && item.add_to_new_projects) ? 'checked' : '' %> />
+                <label class="form-check-label fw-semibold" for="add_to_new_projects">Agregar a nuevos proyectos</label>
+              </div>
+            </div>
           </div>
 
           <div class="mb-3">
-            <label for="description" class="form-label fw-semibold">Description</label>
-            <textarea id="description" name="description" class="form-control" rows="3"><%= item ? item.description || '' : '' %></textarea>
+            <label for="description" class="form-label fw-semibold">Descripción</label>
+            <textarea id="description" name="description" class="form-control" rows="2"><%= item ? item.description || '' : '' %></textarea>
           </div>
 
           <% if (item) { %>
-          <div class="mb-4">
+          <div class="mb-3">
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" id="active" name="active"
                      value="1" <%= item.active ? 'checked' : '' %> />
-              <label class="form-check-label" for="active">Active</label>
+              <label class="form-check-label" for="active">Activo</label>
             </div>
           </div>
           <% } %>
 
+          <!-- Project assignments -->
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Proyectos asignados</label>
+            <% if (!allProjects.length) { %>
+              <p class="text-muted small">No hay proyectos activos.</p>
+            <% } else { %>
+            <div class="border rounded p-2" style="max-height:220px;overflow-y:auto">
+              <% let lastClient = null; %>
+              <% allProjects.forEach(p => { %>
+                <% if (p.client_name !== lastClient) { lastClient = p.client_name; %>
+                <div class="text-muted small fw-bold mt-2 mb-1 px-1"><%= p.client_name %></div>
+                <% } %>
+                <div class="form-check ms-2">
+                  <input class="form-check-input" type="checkbox" name="project_ids"
+                         id="proj_<%= p.id %>" value="<%= p.id %>"
+                         <%= assignedIds.includes(p.id) ? 'checked' : '' %> />
+                  <label class="form-check-label small" for="proj_<%= p.id %>"><%= p.name %></label>
+                </div>
+              <% }) %>
+            </div>
+            <% } %>
+          </div>
+
           <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary">
-              <i class="bi bi-floppy me-1"></i><%= item ? 'Save changes' : 'Create task' %>
+              <i class="bi bi-floppy me-1"></i><%= item ? 'Guardar cambios' : 'Crear tarea' %>
             </button>
-            <a href="/admin/tasks" class="btn btn-outline-secondary">Cancel</a>
+            <a href="/admin/tasks" class="btn btn-outline-secondary">Cancelar</a>
           </div>
         </form>
       </div>
     </div>
   </div>
+</div>
+
+<%- include('../../partials/footer') %>
+
 </div>
 
 <%- include('../../partials/footer') %>

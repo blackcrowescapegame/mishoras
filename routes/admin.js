@@ -4,7 +4,7 @@ const express = require('express');
 const { requireLogin, requireAdmin } = require('../middleware/auth');
 const {
   UsersController, ClientsController, ProjectsController,
-  TasksController, ReportsController,
+  TasksController, ReportsController, ImportController, upload,
 } = require('../controllers/adminController');
 
 const router = express.Router();
@@ -48,5 +48,10 @@ router.delete('/tasks/:id',    TasksController.delete);
 
 /* Reports */
 router.get('/reports', ReportsController.index);
+
+/* Import & Reset */
+router.get('/import',                                     ImportController.show);
+router.post('/import/reset',                              ImportController.resetData);
+router.post('/import/:type', upload.single('file'),       ImportController.importFile);
 
 module.exports = router;

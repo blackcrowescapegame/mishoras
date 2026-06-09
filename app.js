@@ -64,7 +64,7 @@ const { generateCsrfToken, doubleCsrfProtection } = doubleCsrf({
   },
   size: 64,
   getCsrfTokenFromRequest: (req) =>
-    req.body._csrf || req.headers['x-csrf-token'],
+    (req.body && req.body._csrf) || req.query._csrf || req.headers['x-csrf-token'],
 });
 
 app.use(doubleCsrfProtection);

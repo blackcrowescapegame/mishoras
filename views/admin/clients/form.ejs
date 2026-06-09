@@ -1,7 +1,7 @@
 <%- include('../../partials/header') %>
 
 <div class="row justify-content-center">
-  <div class="col-lg-6">
+  <div class="col-lg-7">
     <div class="card border-0 shadow-sm">
       <div class="card-body p-4">
         <h2 class="fw-bold mb-4">
@@ -16,14 +16,63 @@
           <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
 
           <div class="mb-3">
-            <label for="name" class="form-label fw-semibold">Name <span class="text-danger">*</span></label>
+            <label for="name" class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
             <input type="text" id="name" name="name" class="form-control"
                    value="<%= item ? item.name : '' %>" required />
           </div>
 
           <div class="mb-3">
-            <label for="description" class="form-label fw-semibold">Description</label>
-            <textarea id="description" name="description" class="form-control" rows="3"><%= item ? item.description || '' : '' %></textarea>
+            <label for="custom_id" class="form-label fw-semibold">ID personalizado</label>
+            <input type="text" id="custom_id" name="custom_id" class="form-control"
+                   value="<%= item ? item.custom_id || '' : '' %>" />
+          </div>
+
+          <div class="mb-3">
+            <label for="contact_person" class="form-label fw-semibold">Persona de contacto</label>
+            <input type="text" id="contact_person" name="contact_person" class="form-control"
+                   value="<%= item ? item.contact_person || '' : '' %>" />
+          </div>
+
+          <div class="mb-3">
+            <label for="email" class="form-label fw-semibold">Email</label>
+            <input type="email" id="email" name="email" class="form-control"
+                   value="<%= item ? item.email || '' : '' %>" />
+          </div>
+
+          <div class="mb-3">
+            <label for="phone" class="form-label fw-semibold">Teléfono</label>
+            <input type="text" id="phone" name="phone" class="form-control"
+                   value="<%= item ? item.phone || '' : '' %>" />
+          </div>
+
+          <div class="mb-3">
+            <label for="address" class="form-label fw-semibold">Dirección</label>
+            <textarea id="address" name="address" class="form-control" rows="3"><%= item ? item.address || '' : '' %></textarea>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-sm-6">
+              <label for="tax_name" class="form-label fw-semibold">Nombre impuesto</label>
+              <input type="text" id="tax_name" name="tax_name" class="form-control"
+                     value="<%= item ? item.tax_name || '' : '' %>" />
+            </div>
+            <div class="col-sm-6">
+              <label for="tax_percentage" class="form-label fw-semibold">Porcentaje impuesto</label>
+              <input type="number" id="tax_percentage" name="tax_percentage" class="form-control"
+                     min="0" max="100" step="0.01"
+                     value="<%= item ? item.tax_percentage != null ? item.tax_percentage : '' : '' %>" />
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="tax_number" class="form-label fw-semibold">Número de impuesto</label>
+            <input type="text" id="tax_number" name="tax_number" class="form-control"
+                   value="<%= item ? item.tax_number || '' : '' %>" />
+          </div>
+
+          <div class="mb-3">
+            <label for="description" class="form-label fw-semibold">Descripción / Notas</label>
+            <textarea id="description" name="description" class="form-control" rows="2"><%= item ? item.description || '' : '' %></textarea>
           </div>
 
           <% if (item) { %>
@@ -31,16 +80,16 @@
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" id="active" name="active"
                      value="1" <%= item.active ? 'checked' : '' %> />
-              <label class="form-check-label" for="active">Active</label>
+              <label class="form-check-label" for="active">Activo</label>
             </div>
           </div>
           <% } %>
 
           <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary">
-              <i class="bi bi-floppy me-1"></i><%= item ? 'Save changes' : 'Create client' %>
+              <i class="bi bi-floppy me-1"></i><%= item ? 'Guardar cambios' : 'Crear cliente' %>
             </button>
-            <a href="/admin/clients" class="btn btn-outline-secondary">Cancel</a>
+            <a href="/admin/clients" class="btn btn-outline-secondary">Cancelar</a>
           </div>
         </form>
       </div>

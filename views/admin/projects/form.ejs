@@ -1,7 +1,7 @@
 <%- include('../../partials/header') %>
 
 <div class="row justify-content-center">
-  <div class="col-lg-6">
+  <div class="col-lg-7">
     <div class="card border-0 shadow-sm">
       <div class="card-body p-4">
         <h2 class="fw-bold mb-4">
@@ -16,15 +16,15 @@
           <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
 
           <div class="mb-3">
-            <label for="name" class="form-label fw-semibold">Name <span class="text-danger">*</span></label>
+            <label for="name" class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
             <input type="text" id="name" name="name" class="form-control"
                    value="<%= item ? item.name : '' %>" required />
           </div>
 
           <div class="mb-3">
-            <label for="client_id" class="form-label fw-semibold">Client <span class="text-danger">*</span></label>
+            <label for="client_id" class="form-label fw-semibold">Cliente <span class="text-danger">*</span></label>
             <select id="client_id" name="client_id" class="form-select" required>
-              <option value="">-- Select client --</option>
+              <option value="">-- Seleccionar cliente --</option>
               <% clients.forEach(c => { %>
               <option value="<%= c.id %>" <%= (item && item.client_id === c.id) ? 'selected' : '' %>>
                 <%= c.name %>
@@ -34,25 +34,106 @@
           </div>
 
           <div class="mb-3">
-            <label for="description" class="form-label fw-semibold">Description</label>
-            <textarea id="description" name="description" class="form-control" rows="3"><%= item ? item.description || '' : '' %></textarea>
+            <label for="custom_id" class="form-label fw-semibold">ID personalizado</label>
+            <input type="text" id="custom_id" name="custom_id" class="form-control"
+                   value="<%= item ? item.custom_id || '' : '' %>" />
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-sm-4">
+              <label for="flat_fee" class="form-label fw-semibold">Tarifa fija</label>
+              <input type="number" id="flat_fee" name="flat_fee" class="form-control"
+                     min="0" step="0.01"
+                     value="<%= item && item.flat_fee != null ? item.flat_fee : '' %>" />
+            </div>
+            <div class="col-sm-4">
+              <label for="billable_amount" class="form-label fw-semibold">Monto facturable</label>
+              <input type="number" id="billable_amount" name="billable_amount" class="form-control"
+                     min="0" step="0.01"
+                     value="<%= item && item.billable_amount != null ? item.billable_amount : '' %>" />
+            </div>
+            <div class="col-sm-4">
+              <label for="budget_spent_pct" class="form-label fw-semibold">% Presupuesto usado</label>
+              <input type="number" id="budget_spent_pct" name="budget_spent_pct" class="form-control"
+                     min="0" max="100" step="0.01"
+                     value="<%= item && item.budget_spent_pct != null ? item.budget_spent_pct : '' %>" />
+            </div>
           </div>
 
           <% if (item) { %>
-          <div class="mb-4">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Horas registradas</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-clock"></i></span>
+              <input type="text" class="form-control bg-light" value="<%= loggedHours.toFixed(2) %> h" readonly />
+            </div>
+            <div class="form-text">Calculado automáticamente desde los registros de horas.</div>
+          </div>
+          <% } %>
+
+          <div class="mb-3">
+            <label for="description" class="form-label fw-semibold">Descripción / Notas</label>
+            <textarea id="description" name="description" class="form-control" rows="2"><%= item ? item.description || '' : '' %></textarea>
+          </div>
+
+          <% if (item) { %>
+          <div class="mb-3">
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" id="active" name="active"
                      value="1" <%= item.active ? 'checked' : '' %> />
-              <label class="form-check-label" for="active">Active</label>
+              <label class="form-check-label" for="active">Activo</label>
             </div>
           </div>
           <% } %>
 
+          <!-- User assignments -->
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Usuarios asignados</label>
+            <% if (!allUsers.length) { %>
+              <p class="text-muted small">No hay usuarios.</p>
+            <% } else { %>
+            <div class="border rounded p-2" style="max-height:180px;overflow-y:auto">
+              <% allUsers.forEach(u => { %>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="user_ids"
+                       id="usr_<%= u.id %>" value="<%= u.id %>"
+                       <%= assignedIds.includes(u.id) ? 'checked' : '' %> />
+                <label class="form-check-label small" for="usr_<%= u.id %>">
+                  <%= u.name %> <span class="text-muted"><%= u.email %></span>
+                </label>
+              </div>
+              <% }) %>
+            </div>
+            <% } %>
+          </div>
+
+          <!-- Task assignments -->
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Tareas asignadas</label>
+            <% if (!allTasks.length) { %>
+              <p class="text-muted small">No hay tareas activas.</p>
+            <% } else { %>
+            <div class="border rounded p-2" style="max-height:180px;overflow-y:auto">
+              <% allTasks.forEach(t => { %>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="task_ids"
+                       id="tsk_<%= t.id %>" value="<%= t.id %>"
+                       <%= assignedTaskIds.includes(t.id) ? 'checked' : '' %> />
+                <label class="form-check-label small" for="tsk_<%= t.id %>">
+                  <%= t.name %>
+                  <% if (t.hourly_rate) { %><span class="text-muted">(<%=  parseFloat(t.hourly_rate).toFixed(2) %>/h)</span><% } %>
+                </label>
+              </div>
+              <% }) %>
+            </div>
+            <% } %>
+          </div>
+
           <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary">
-              <i class="bi bi-floppy me-1"></i><%= item ? 'Save changes' : 'Create project' %>
+              <i class="bi bi-floppy me-1"></i><%= item ? 'Guardar cambios' : 'Crear proyecto' %>
             </button>
-            <a href="/admin/projects" class="btn btn-outline-secondary">Cancel</a>
+            <a href="/admin/projects" class="btn btn-outline-secondary">Cancelar</a>
           </div>
         </form>
       </div>

@@ -1,0 +1,186 @@
+<%- include('../../partials/header') %>
+
+<h2 class="fw-bold mb-1"><i class="bi bi-cloud-upload me-2 text-primary"></i>Importar datos / Resetear</h2>
+<p class="text-muted mb-4">Cargue archivos Excel (.xlsx) para poblar la base de datos o elimine los datos de prueba.</p>
+
+<%- include('../../partials/alerts') %>
+
+<% if (typeof importErrors !== 'undefined' && importErrors && importErrors.length) { %>
+<div class="alert alert-warning">
+  <strong>Detalle de errores de importación:</strong>
+  <ul class="mb-0 mt-1">
+    <% importErrors.forEach(e => { %><li><%= e %></li><% }); %>
+  </ul>
+</div>
+<% } %>
+
+<!-- ═══════════════════════════════════════════════
+     RESET
+═══════════════════════════════════════════════ -->
+<div class="card border-danger mb-5">
+  <div class="card-header bg-danger text-white fw-bold">
+    <i class="bi bi-trash3 me-2"></i>Eliminar datos de prueba
+  </div>
+  <div class="card-body">
+    <p class="mb-3">
+      Esta acción elimina <strong>todos</strong> los registros de
+      <em>time_entries, tasks, projects, clients</em> y usuarios que no sean administradores.<br>
+      <span class="text-danger fw-bold">Esta operación es irreversible.</span>
+    </p>
+    <form action="/admin/import/reset" method="POST">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <div class="row g-2 align-items-end">
+        <div class="col-sm-5">
+          <label class="form-label fw-semibold">Escriba <code>RESETEAR</code> para confirmar</label>
+          <input type="text" name="confirm" class="form-control" placeholder="RESETEAR" required autocomplete="off" />
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-danger">
+            <i class="bi bi-exclamation-triangle me-1"></i>Resetear base de datos
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     IMPORT PANELS
+═══════════════════════════════════════════════ -->
+<h4 class="fw-bold mb-3"><i class="bi bi-file-earmark-spreadsheet me-2 text-success"></i>Importar desde Excel</h4>
+<p class="text-muted mb-4">
+  Importe en el orden recomendado: <strong>1) Clientes → 2) Proyectos → 3) Tareas → 4) Usuarios</strong>.
+  La primera fila de cada hoja debe contener los nombres de columnas indicados (sin importar mayúsculas).
+</p>
+
+<div class="row g-4">
+
+  <!-- Clients -->
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header fw-bold text-success bg-success bg-opacity-10">
+        <i class="bi bi-building me-2"></i>1. Clientes
+      </div>
+      <div class="card-body">
+        <p class="small text-muted mb-2">Columnas en la hoja Excel (primera fila = encabezados):</p>
+        <table class="table table-sm table-bordered small mb-3">
+          <thead class="table-light"><tr><th>Columna</th><th>Descripción</th><th>¿Req?</th></tr></thead>
+          <tbody>
+            <tr><td><code>nombre</code></td><td>Nombre del cliente</td><td class="text-center">✔</td></tr>
+            <tr><td><code>id personalizado</code></td><td>Código / ID interno</td><td class="text-center">—</td></tr>
+            <tr><td><code>contacto</code></td><td>Persona de contacto</td><td class="text-center">—</td></tr>
+            <tr><td><code>email</code></td><td>Correo electrónico</td><td class="text-center">—</td></tr>
+            <tr><td><code>telefono</code></td><td>Teléfono</td><td class="text-center">—</td></tr>
+            <tr><td><code>direccion</code></td><td>Dirección</td><td class="text-center">—</td></tr>
+            <tr><td><code>impuesto</code></td><td>Nombre del impuesto</td><td class="text-center">—</td></tr>
+            <tr><td><code>porcentaje impuesto</code></td><td>% impuesto (ej: 16)</td><td class="text-center">—</td></tr>
+            <tr><td><code>numero impuesto</code></td><td>RUC / NIT / RIF</td><td class="text-center">—</td></tr>
+            <tr><td><code>descripcion</code></td><td>Notas internas</td><td class="text-center">—</td></tr>
+          </tbody>
+        </table>
+        <form action="/admin/import/clients?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST" enctype="multipart/form-data">
+          <div class="input-group">
+            <input type="file" name="file" accept=".xlsx" class="form-control" required />
+            <button class="btn btn-success" type="submit"><i class="bi bi-upload me-1"></i>Importar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Projects -->
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header fw-bold text-warning bg-warning bg-opacity-10">
+        <i class="bi bi-kanban me-2"></i>2. Proyectos
+      </div>
+      <div class="card-body">
+        <p class="small text-muted mb-2">Columnas en la hoja Excel (primera fila = encabezados):</p>
+        <table class="table table-sm table-bordered small mb-3">
+          <thead class="table-light"><tr><th>Columna</th><th>Descripción</th><th>¿Req?</th></tr></thead>
+          <tbody>
+            <tr><td><code>PROJECT</code></td><td>Nombre del proyecto</td><td class="text-center">✔</td></tr>
+            <tr><td><code>CLIENT</code></td><td>Nombre exacto del cliente</td><td class="text-center">✔</td></tr>
+            <tr><td><code>CUSTOM ID</code></td><td>ID / código interno</td><td class="text-center">—</td></tr>
+            <tr><td><code>STATUS</code></td><td>Active / Inactive</td><td class="text-center">—</td></tr>
+            <tr><td><code>PROJECT FLAT FEE</code></td><td>Tarifa fija del proyecto</td><td class="text-center">—</td></tr>
+            <tr><td><code>BILLABLE AMOUNT</code></td><td>Monto facturable</td><td class="text-center">—</td></tr>
+            <tr><td><code>TOTAL HOURS</code></td><td>Horas totales registradas</td><td class="text-center">—</td></tr>
+            <tr><td><code>BUDGET SPENT IN %</code></td><td>% de presupuesto utilizado</td><td class="text-center">—</td></tr>
+          </tbody>
+        </table>
+        <form action="/admin/import/projects?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST" enctype="multipart/form-data">
+          <div class="input-group">
+            <input type="file" name="file" accept=".xlsx" class="form-control" required />
+            <button class="btn btn-warning" type="submit"><i class="bi bi-upload me-1"></i>Importar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tasks -->
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header fw-bold text-info bg-info bg-opacity-10">
+        <i class="bi bi-check2-square me-2"></i>3. Tareas
+      </div>
+      <div class="card-body">
+        <p class="small text-muted mb-2">Las tareas son un catálogo global. Se asignan a proyectos desde la edición del proyecto o de la tarea.</p>
+        <table class="table table-sm table-bordered small mb-3">
+          <thead class="table-light"><tr><th>Columna</th><th>Descripción</th><th>¿Req?</th></tr></thead>
+          <tbody>
+            <tr><td><code>NAME</code></td><td>Nombre de la tarea</td><td class="text-center">✔</td></tr>
+            <tr><td><code>HOURLY RATE</code></td><td>Tarifa por hora</td><td class="text-center">—</td></tr>
+            <tr><td><code>BILLABLE BY DEFAULT</code></td><td>True / False</td><td class="text-center">—</td></tr>
+            <tr><td><code>ADD TO NEW PROJECTS</code></td><td>True / False</td><td class="text-center">—</td></tr>
+            <tr><td><code>STATUS</code></td><td>Active / Inactive</td><td class="text-center">—</td></tr>
+            <tr><td><code>DESCRIPTION</code></td><td>Descripción</td><td class="text-center">—</td></tr>
+          </tbody>
+        </table>
+        <form action="/admin/import/tasks?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST" enctype="multipart/form-data">
+          <div class="input-group">
+            <input type="file" name="file" accept=".xlsx" class="form-control" required />
+            <button class="btn btn-info" type="submit"><i class="bi bi-upload me-1"></i>Importar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Users -->
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header fw-bold text-primary bg-primary bg-opacity-10">
+        <i class="bi bi-people me-2"></i>4. Usuarios
+      </div>
+      <div class="card-body">
+        <p class="small text-muted mb-2">Columnas en la hoja Excel (primera fila = encabezados):</p>
+        <table class="table table-sm table-bordered small mb-3">
+          <thead class="table-light"><tr><th>Columna</th><th>Descripción</th><th>¿Req?</th></tr></thead>
+          <tbody>
+            <tr><td><code>NAME</code></td><td>Nombre completo</td><td class="text-center">✔</td></tr>
+            <tr><td><code>EMAIL</code></td><td>Correo (único)</td><td class="text-center">✔</td></tr>
+            <tr><td><code>ROLE</code></td><td>Normal → usuario / Admin → admin</td><td class="text-center">—</td></tr>
+            <tr><td><code>STATUS</code></td><td>Active / Inactive</td><td class="text-center">—</td></tr>
+            <tr><td><code>CUSTOM ID</code></td><td>ID interno</td><td class="text-center">—</td></tr>
+            <tr><td><code>LABOR RATE</code></td><td>Tarifa laboral</td><td class="text-center">—</td></tr>
+            <tr><td><code>BILLABLE RATE</code></td><td>Tarifa facturable</td><td class="text-center">—</td></tr>
+            <tr><td><code>PROJECTS</code></td><td>Lista separada por coma: <em>Cliente - Proyecto</em></td><td class="text-center">—</td></tr>
+          </tbody>
+        </table>
+        <p class="small text-muted"><i class="bi bi-key me-1"></i>Contraseña por defecto: <strong>MisHoras123</strong>. Cada usuario puede cambiarla desde su perfil.</p>
+        <p class="small text-muted"><i class="bi bi-info-circle me-1"></i>Importe proyectos <strong>antes</strong> de importar usuarios para que las asignaciones funcionen.</p>
+        <form action="/admin/import/users?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST" enctype="multipart/form-data">
+          <div class="input-group">
+            <input type="file" name="file" accept=".xlsx" class="form-control" required />
+            <button class="btn btn-primary" type="submit"><i class="bi bi-upload me-1"></i>Importar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /row -->
+
+<%- include('../../partials/footer') %>
