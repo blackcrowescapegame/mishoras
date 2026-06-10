@@ -124,7 +124,7 @@
 <div class="card border-0 shadow-sm">
   <div class="card-header bg-white border-bottom py-2 px-3 d-flex align-items-center justify-content-between">
     <span class="small text-muted fw-semibold">
-      <%= entries.length %> entr<%= entries.length === 1 ? 'y' : 'ies' %>
+      <%= total %> entr<%= total === 1 ? 'y' : 'ies' %>
       &nbsp;·&nbsp;
       <strong class="text-dark"><%= totalHours %></strong> total
     </span>
@@ -165,9 +165,12 @@
             <%
               const ed = new Date((e.entry_date instanceof Date ? e.entry_date.toISOString() : String(e.entry_date)).slice(0,10) + 'T00:00:00');
               const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+              const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+              const yyyy = ed.getFullYear();
+              const mm   = String(ed.getMonth()+1).padStart(2,'0');
+              const dd   = String(ed.getDate()).padStart(2,'0');
             %>
-            <span class="fw-semibold text-dark"><%= days[ed.getDay()] %></span>
-            <%= ed.getDate() %> <%= ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][ed.getMonth()] %>
+            <span class="text-dark"><%= dd %>/<%= mm %>/<%= yyyy %></span>
           </td>
           <% if (isAdmin) { %><td class="text-muted"><%= e.user_name %></td><% } %>
           <td><%= e.client_name %></td>
@@ -203,6 +206,47 @@
         <% }) %>
       </tbody>
     </table>
+  </div>
+  <% } %>
+
+  <% if (totalPages > 1) { %>
+  <%
+    const pageQS = function(p) {
+      const params = new URLSearchParams({ preset, from, to });
+      if (filterClientId)  params.set('client_id',  filterClientId);
+      if (filterProjectId) params.set('project_id', filterProjectId);
+      if (filterTaskId)    params.set('task_id',    filterTaskId);
+      if (filterUserId)    params.set('user_id',    filterUserId);
+      params.set('page', p);
+      return '/hours/detailed?' + params.toString();
+    };
+    const WING = 2;
+    const pStart = Math.max(1, page - WING);
+    const pEnd   = Math.min(totalPages, page + WING);
+  %>
+  <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top small text-muted">
+    <span>Page <%= page %> of <%= totalPages %></span>
+    <nav>
+      <ul class="pagination pagination-sm mb-0">
+        <li class="page-item <%= page === 1 ? 'disabled' : '' %>">
+          <a class="page-link" href="<%= pageQS(1) %>">&laquo;</a>
+        </li>
+        <li class="page-item <%= page === 1 ? 'disabled' : '' %>">
+          <a class="page-link" href="<%= pageQS(page - 1) %>">&lsaquo;</a>
+        </li>
+        <% for (let p2 = pStart; p2 <= pEnd; p2++) { %>
+        <li class="page-item <%= p2 === page ? 'active' : '' %>">
+          <a class="page-link" href="<%= pageQS(p2) %>"><%= p2 %></a>
+        </li>
+        <% } %>
+        <li class="page-item <%= page === totalPages ? 'disabled' : '' %>">
+          <a class="page-link" href="<%= pageQS(page + 1) %>">&rsaquo;</a>
+        </li>
+        <li class="page-item <%= page === totalPages ? 'disabled' : '' %>">
+          <a class="page-link" href="<%= pageQS(totalPages) %>">&raquo;</a>
+        </li>
+      </ul>
+    </nav>
   </div>
   <% } %>
 </div>

@@ -183,4 +183,76 @@
 
 </div><!-- /row -->
 
+<!-- ═══════════════════════════════════════════════
+     TIME ENTRIES (Detailed Report)
+═══════════════════════════════════════════════ -->
+<h4 class="fw-bold mt-5 mb-3"><i class="bi bi-clock-history me-2 text-secondary"></i>Importar Historial de Horas</h4>
+<p class="text-muted mb-4">
+  Importe un reporte detallado (<strong>DetailedReport</strong>) con las horas de un usuario.
+  Se crearán automáticamente los clientes, proyectos y tareas que no existan.
+</p>
+
+<div class="card border-warning mb-4">
+  <div class="card-header bg-warning bg-opacity-10 fw-bold">
+    <i class="bi bi-trash3 me-2 text-warning"></i>Eliminar todas las entradas de tiempo
+  </div>
+  <div class="card-body">
+    <p class="mb-3 small text-muted">
+      Elimina <strong>únicamente</strong> los registros de <em>time_entries</em>.
+      Clientes, proyectos, tareas y usuarios <strong>no</strong> se ven afectados.<br>
+      <span class="text-danger fw-bold">Esta operación es irreversible.</span>
+    </p>
+    <form action="/admin/import/reset-time-entries" method="POST">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <div class="row g-2 align-items-end">
+        <div class="col-sm-5">
+          <label class="form-label fw-semibold">Escriba <code>BORRAR</code> para confirmar</label>
+          <input type="text" name="confirm" class="form-control" placeholder="BORRAR" required autocomplete="off" />
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-warning">
+            <i class="bi bi-trash3 me-1"></i>Eliminar entradas de tiempo
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card mb-5">
+  <div class="card-header fw-bold bg-secondary bg-opacity-10">
+    <i class="bi bi-table me-2"></i>5. Entradas de Tiempo (DetailedReport.xlsx)
+  </div>
+  <div class="card-body">
+    <p class="small text-muted mb-2">Columnas esperadas en la primera fila (sin importar mayúsculas):</p>
+    <table class="table table-sm table-bordered small mb-3">
+      <thead class="table-light"><tr><th>Columna</th><th>Descripción</th><th>¿Req?</th></tr></thead>
+      <tbody>
+        <tr><td><code>Date</code></td><td>Fecha de la entrada (DD/MM/YYYY o YYYY-MM-DD)</td><td class="text-center">✔</td></tr>
+        <tr><td><code>User</code></td><td>Nombre del usuario (si no se incluye, se usa el selector)</td><td class="text-center">—</td></tr>
+        <tr><td><code>Client</code></td><td>Nombre del cliente (se crea si no existe)</td><td class="text-center">✔</td></tr>
+        <tr><td><code>Project</code></td><td>Nombre del proyecto (se crea si no existe)</td><td class="text-center">✔</td></tr>
+        <tr><td><code>Task</code></td><td>Nombre de la tarea (se crea si no existe)</td><td class="text-center">—</td></tr>
+        <tr><td><code>Description</code></td><td>Nota / descripción de la entrada</td><td class="text-center">—</td></tr>
+        <tr><td><code>Duration</code></td><td>Duración en formato HH:MM o decimal (ej: 1:30 ó 1.5)</td><td class="text-center">✔</td></tr>
+      </tbody>
+    </table>
+    <form action="/admin/import/time-entries?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST" enctype="multipart/form-data">
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Usuario por defecto <span class="text-muted fw-normal">(obligatorio si el archivo no tiene columna "User")</span></label>
+        <select name="user_id" class="form-select">
+          <option value="">— Seleccione un usuario —</option>
+          <% users.forEach(u => { %>
+            <option value="<%= u.id %>"><%= u.name %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div class="input-group">
+        <input type="file" name="file" accept=".xlsx" class="form-control" required />
+        <button class="btn btn-secondary" type="submit"><i class="bi bi-upload me-1"></i>Importar horas</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <%- include('../../partials/footer') %>

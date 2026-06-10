@@ -413,20 +413,34 @@ const HoursController = {
     const { preset, from, to, filterUserId, filterProjectId, filterClientId, filterTaskId, userId }
       = resolveDetailedFilters(req.query, today, isAdmin, req.session.userId);
 
+    const PAGE_SIZE = 10;
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+
     try {
-      const [entries, clients, projects, users] = await Promise.all([
+      const [allEntries, clients, projects, users] = await Promise.all([
         TimeEntry.findDetailed({ from, to, userId, projectId: filterProjectId, clientId: filterClientId, taskId: filterTaskId }),
         Client.findAll(true),
         Project.findAll(true),
         isAdmin ? User.findAll() : Promise.resolve([]),
       ]);
-      const totalHours = entries.reduce((s, e) => s + parseFloat(e.hours), 0);
+      // Ensure newest-first order (entry_date may be a Date object or ISO string)
+      const toDateVal = (v) => v instanceof Date ? v.getTime() : new Date(String(v).slice(0,10) + 'T00:00:00').getTime();
+      allEntries.sort((a, b) => {
+        const diff = toDateVal(b.entry_date) - toDateVal(a.entry_date);
+        return diff !== 0 ? diff : b.id - a.id;
+      });
+      const total      = allEntries.length;
+      const totalPages = Math.ceil(total / PAGE_SIZE) || 1;
+      const safePage   = Math.min(page, totalPages);
+      const entries    = allEntries.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+      const totalHours = allEntries.reduce((s, e) => s + parseFloat(e.hours), 0);
       res.render('hours/detailed', {
         title: 'Detailed View',
         entries: entries.map(e => ({ ...e, hoursStr: hoursToHHMM(e.hours) || '0:00' })),
         totalHours: hoursToHHMM(totalHours) || '0:00',
         preset, from, to, clients, projects, users,
         filterUserId, filterProjectId, filterClientId, filterTaskId, isAdmin,
+        page: safePage, totalPages, total,
         success: req.flash('success'), error: req.flash('error'), user: req.session.user,
       });
     } catch (err) {

@@ -395,9 +395,12 @@ const ReportsController = {
 
 /* ─── Import / Reset ─── */
 const ImportController = {
-  show(req, res) {
+  async show(req, res) {
+    const pool = await getPool();
+    const usersRes = await pool.request().query('SELECT id, name FROM users WHERE active = 1 ORDER BY name');
     res.render('admin/import/index', {
       title: 'Importar datos',
+      users: usersRes.recordset,
       success: req.flash('success'),
       error: req.flash('error'),
       importErrors: req.flash('importErrors'),
@@ -636,6 +639,274 @@ const ImportController = {
     }
     res.redirect('/admin/import');
   },
+
+  async resetTimeEntries(req, res) {
+    const { confirm } = req.body;
+    if (confirm !== 'BORRAR') {
+      req.flash('error', 'Debe escribir BORRAR exactamente para confirmar.');
+      return res.redirect('/admin/import');
+    }
+    try {
+      const pool = await getPool();
+      const r = await pool.request().query('DELETE FROM time_entries');
+      req.flash('success', `${r.rowsAffected[0]} entradas de tiempo eliminadas correctamente.`);
+    } catch (err) {
+      console.error(err);
+      req.flash('error', 'No se pudo eliminar las entradas: ' + err.message);
+    }
+    res.redirect('/admin/import');
+  },
+
+  async importTimeEntries(req, res) {
+    if (!req.file) {
+      req.flash('error', 'No se seleccionó ningún archivo.');
+      return res.redirect('/admin/import');
+    }
+    const defaultUserId = req.body.user_id ? parseInt(req.body.user_id, 10) : null;
+
+    try {
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(req.file.buffer);
+      const sheet = workbook.worksheets[0];
+      if (!sheet) throw new Error('El archivo no contiene hojas.');
+
+      // Auto-detect header row
+      const HEADER_ANCHORS = ['client', 'project', 'cliente', 'proyecto'];
+      let headerRowNum = 1;
+      for (let r = 1; r <= Math.min(20, sheet.rowCount); r++) {
+        const rowVals = [];
+        sheet.getRow(r).eachCell(cell => {
+          rowVals.push(cell.value?.toString().trim().toLowerCase() || '');
+        });
+        if (HEADER_ANCHORS.some(a => rowVals.includes(a))) { headerRowNum = r; break; }
+      }
+
+      const headers = {};
+      sheet.getRow(headerRowNum).eachCell((cell, col) => {
+        const key = cell.value?.toString().trim().toLowerCase();
+        if (key) headers[key] = col;
+      });
+      const DATA_START_ROW = headerRowNum + 1;
+
+      const getCellText = (v) => {
+        if (v === null || v === undefined) return null;
+        if (typeof v === 'object' && 'result' in v) v = v.result;
+        if (typeof v === 'object' && v !== null && Array.isArray(v.richText))
+          return v.richText.map(r => r.text || '').join('').trim() || null;
+        if (v instanceof Date) return v.toISOString();
+        const s = v.toString().trim();
+        return s || null;
+      };
+
+      const get = (row, ...aliases) => {
+        for (const alias of aliases) {
+          const col = headers[alias];
+          if (col !== undefined) {
+            const s = getCellText(row.getCell(col).value);
+            if (s !== null) return s;
+          }
+        }
+        return null;
+      };
+
+      // Like get() but only returns values that look like a number/duration (start with digit).
+      // Prevents picking up description text from mismatched column aliases.
+      const getDuration = (row) => {
+        const ALIASES = ['duration', 'duración', 'duracion', 'total hours', 'horas totales', 'hours', 'horas', 'time', 'tiempo'];
+        for (const alias of ALIASES) {
+          const col = headers[alias];
+          if (col === undefined) continue;
+          const s = getCellText(row.getCell(col).value);
+          if (s !== null && /^\d/.test(s.trim())) return s;
+        }
+        return null;
+      };
+
+      const parseDate = (raw) => {
+        if (!raw) return null;
+        if (raw instanceof Date) {
+          if (isNaN(raw.getTime())) return null;
+          return raw.toISOString().slice(0, 10);
+        }
+        const s = raw.toString().trim();
+        if (!s) return null;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+        const m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (m1) return `${m1[3]}-${m1[2].padStart(2, '0')}-${m1[1].padStart(2, '0')}`;
+        const MONTHS = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+        const m2 = s.match(/(?:\w+,?\s+)?(\d{1,2})\s+([A-Za-z]{3,}),?\s+(\d{4})/);
+        if (m2) {
+          const mon = MONTHS[m2[2].toLowerCase().slice(0, 3)];
+          if (mon) return `${m2[3]}-${String(mon).padStart(2, '0')}-${m2[1].padStart(2, '0')}`;
+        }
+        if (/^\d{5}$/.test(s)) {
+          const d = new Date(Date.UTC(1899, 11, 30) + parseInt(s, 10) * 86400000);
+          if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+        }
+        const d = new Date(s);
+        if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+        return null;
+      };
+
+      const parseDuration = (raw) => {
+        if (!raw) return null;
+        const s = raw.toString().trim();
+        if (s.includes(':')) {
+          const [h, m] = s.split(':').map(n => parseInt(n, 10) || 0);
+          return h + m / 60;
+        }
+        const n = parseFloat(s);
+        return isNaN(n) ? null : n;
+      };
+
+      const pool = await getPool();
+
+      // ── Pre-load existing clients, projects, tasks and users into Maps ──────
+      const clientMap  = new Map(); // "name" → id
+      const projectMap = new Map(); // "clientId:name" → id
+      const taskMap    = new Map(); // "name" → id
+      const userMap    = new Map(); // "name" → id
+
+      const [clientsRes, projectsRes, tasksRes, usersRes] = await Promise.all([
+        pool.request().query('SELECT id, name FROM clients'),
+        pool.request().query('SELECT id, name, client_id FROM projects'),
+        pool.request().query('SELECT id, name FROM tasks'),
+        pool.request().query('SELECT id, name FROM users'),
+      ]);
+      for (const c of clientsRes.recordset)  clientMap.set(c.name, c.id);
+      for (const p of projectsRes.recordset) projectMap.set(`${p.client_id}:${p.name}`, p.id);
+      for (const t of tasksRes.recordset)    taskMap.set(t.name, t.id);
+      for (const u of usersRes.recordset)    userMap.set(u.name, u.id);
+
+      // ── Helpers using caches (only hit DB on cache miss) ─────────────────────
+      const getOrCreateClient = async (name) => {
+        if (clientMap.has(name)) return clientMap.get(name);
+        const r = await pool.request().input('n', sql.NVarChar, name)
+          .query('INSERT INTO clients (name) OUTPUT INSERTED.id VALUES (@n)');
+        const id = r.recordset[0].id;
+        clientMap.set(name, id);
+        return id;
+      };
+
+      const getOrCreateProject = async (name, clientId) => {
+        const key = `${clientId}:${name}`;
+        if (projectMap.has(key)) return projectMap.get(key);
+        const r = await pool.request().input('n', sql.NVarChar, name).input('cid', sql.Int, clientId)
+          .query('INSERT INTO projects (name, client_id) OUTPUT INSERTED.id VALUES (@n, @cid)');
+        const id = r.recordset[0].id;
+        projectMap.set(key, id);
+        return id;
+      };
+
+      const getOrCreateTask = async (name) => {
+        if (!name) return null;
+        if (taskMap.has(name)) return taskMap.get(name);
+        const r = await pool.request().input('n', sql.NVarChar, name)
+          .query('INSERT INTO tasks (name) OUTPUT INSERTED.id VALUES (@n)');
+        const id = r.recordset[0].id;
+        taskMap.set(name, id);
+        return id;
+      };
+
+      // ── Parse all rows, build entry list and relationship sets ───────────────
+      const hasUserCol = ('user' in headers) || ('usuario' in headers);
+      const entries        = []; // rows to bulk-insert
+      const userProjects   = new Set(); // "uid:pid"
+      const projectTasks   = new Set(); // "pid:tid"
+      let currentDate      = null;
+      const rowErrors      = [];
+
+      for (let i = DATA_START_ROW; i <= sheet.rowCount; i++) {
+        const row = sheet.getRow(i);
+        if (!row.hasValues) continue;
+        try {
+          const dateRaw       = get(row, 'date', 'fecha');
+          const firstCellRaw  = getCellText(row.getCell(1).value);
+          const parsedDateRaw = parseDate(dateRaw) || parseDate(firstCellRaw);
+          // Group-header row: first cell is a valid date
+          if (parsedDateRaw) { currentDate = parsedDateRaw; continue; }
+
+          const clientName    = get(row, 'client', 'cliente');
+          const projectName   = get(row, 'project', 'proyecto');
+          const durRaw        = getDuration(row);
+
+          // Skip silently: description rows, separators, subtotal rows, not-billable 0h rows.
+          // A valid time entry always has client + project + numeric duration.
+          if (!clientName || !projectName || !durRaw) continue;
+
+          const taskName      = get(row, 'task', 'tarea') || null;
+          const description   = get(row, 'description', 'descripcion', 'descripción', 'note', 'notes', 'notas') || null;
+          const userName      = hasUserCol ? get(row, 'user', 'usuario') : null;
+
+          const entryDate = currentDate;
+          if (!entryDate) { rowErrors.push(`Fila ${i}: fecha requerida (no hay cabecera de fecha anterior).`); continue; }
+
+          const hours = parseDuration(durRaw);
+          if (hours === null || hours <= 0) continue;
+
+          let userId = defaultUserId;
+          if (hasUserCol && userName) {
+            if (!userMap.has(userName)) { rowErrors.push(`Fila ${i}: usuario "${userName}" no encontrado.`); continue; }
+            userId = userMap.get(userName);
+          }
+          if (!userId) { rowErrors.push(`Fila ${i}: no se pudo determinar el usuario.`); continue; }
+
+          const clientId  = await getOrCreateClient(clientName);
+          const projectId = await getOrCreateProject(projectName, clientId);
+          const taskId    = taskName ? await getOrCreateTask(taskName) : null;
+
+          if (taskId)  projectTasks.add(`${projectId}:${taskId}`);
+          userProjects.add(`${userId}:${projectId}`);
+
+          entries.push({ userId, projectId, taskId: taskId || null, entryDate, hours: Math.round(hours * 100) / 100, description });
+        } catch (rowErr) {
+          rowErrors.push(`Fila ${i}: ${rowErr.message}`);
+        }
+      }
+
+      // ── Batch-insert relationships ───────────────────────────────────────────
+      for (const key of projectTasks) {
+        const [pid, tid] = key.split(':').map(Number);
+        await pool.request().input('pid', sql.Int, pid).input('tid', sql.Int, tid)
+          .query(`IF NOT EXISTS (SELECT 1 FROM project_tasks WHERE project_id=@pid AND task_id=@tid)
+                  INSERT INTO project_tasks (project_id, task_id) VALUES (@pid, @tid)`);
+      }
+      for (const key of userProjects) {
+        const [uid, pid] = key.split(':').map(Number);
+        await pool.request().input('uid', sql.Int, uid).input('pid', sql.Int, pid)
+          .query(`IF NOT EXISTS (SELECT 1 FROM user_projects WHERE user_id=@uid AND project_id=@pid)
+                  INSERT INTO user_projects (user_id, project_id) VALUES (@uid, @pid)`);
+      }
+
+      // ── Bulk-insert time_entries ─────────────────────────────────────────────
+      if (entries.length) {
+        const table = new sql.Table('time_entries');
+        table.create = false;
+        table.columns.add('user_id',     sql.Int,          { nullable: false });
+        table.columns.add('project_id',  sql.Int,          { nullable: false });
+        table.columns.add('task_id',     sql.Int,          { nullable: true  });
+        table.columns.add('entry_date',  sql.Date,         { nullable: false });
+        table.columns.add('hours',       sql.Decimal(5,2), { nullable: false });
+        table.columns.add('description', sql.NVarChar(500),{ nullable: true  });
+        for (const e of entries)
+          table.rows.add(e.userId, e.projectId, e.taskId, e.entryDate, e.hours, e.description);
+        await pool.request().bulk(table);
+      }
+
+      const imported = entries.length;
+      if (rowErrors.length) {
+        req.flash('importErrors', rowErrors);
+        req.flash('error', `${imported} entradas importadas con ${rowErrors.length} error(es). Revise el detalle.`);
+      } else {
+        req.flash('success', `${imported} entradas de tiempo importadas correctamente.`);
+      }
+    } catch (err) {
+      console.error(err);
+      req.flash('error', 'Error al procesar el archivo: ' + err.message);
+    }
+    res.redirect('/admin/import');
+  },
 };
 
 module.exports = { UsersController, ClientsController, ProjectsController, TasksController, ReportsController, ImportController, upload };
+
