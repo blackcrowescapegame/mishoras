@@ -408,28 +408,6 @@ const ImportController = {
     });
   },
 
-  async resetData(req, res) {
-    const { confirm } = req.body;
-    if (confirm !== 'RESETEAR') {
-      req.flash('error', 'Debe escribir RESETEAR exactamente para confirmar.');
-      return res.redirect('/admin/import');
-    }
-    try {
-      const pool = await getPool();
-      // Delete in FK-safe order, preserve the admin user
-      await pool.request().query('DELETE FROM time_entries');
-      await pool.request().query('DELETE FROM tasks');
-      await pool.request().query('DELETE FROM projects');
-      await pool.request().query('DELETE FROM clients');
-      await pool.request().query("DELETE FROM users WHERE role != 'admin'");
-      req.flash('success', 'Todos los datos de prueba fueron eliminados. El usuario administrador se conservó.');
-    } catch (err) {
-      console.error(err);
-      req.flash('error', 'No se pudo resetear la base de datos: ' + err.message);
-    }
-    res.redirect('/admin/import');
-  },
-
   async importFile(req, res) {
     const { type } = req.params;
     const VALID_TYPES = ['clients', 'projects', 'tasks', 'users'];
@@ -636,23 +614,6 @@ const ImportController = {
     } catch (err) {
       console.error(err);
       req.flash('error', 'Error al procesar el archivo: ' + err.message);
-    }
-    res.redirect('/admin/import');
-  },
-
-  async resetTimeEntries(req, res) {
-    const { confirm } = req.body;
-    if (confirm !== 'BORRAR') {
-      req.flash('error', 'Debe escribir BORRAR exactamente para confirmar.');
-      return res.redirect('/admin/import');
-    }
-    try {
-      const pool = await getPool();
-      const r = await pool.request().query('DELETE FROM time_entries');
-      req.flash('success', `${r.rowsAffected[0]} entradas de tiempo eliminadas correctamente.`);
-    } catch (err) {
-      console.error(err);
-      req.flash('error', 'No se pudo eliminar las entradas: ' + err.message);
     }
     res.redirect('/admin/import');
   },

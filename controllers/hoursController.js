@@ -109,7 +109,7 @@ const HoursController = {
       try {
         const [rawEntries, projects] = await Promise.all([
           TimeEntry.findByUser(req.session.userId, { from: currentDate, to: currentDate }),
-          Project.findAll(true),
+          req.session.userRole === 'admin' ? Project.findAll(true) : Project.findByUser(req.session.userId),
         ]);
         const dayEntries = rawEntries.map(e => ({ ...e, hoursStr: hoursToHHMM(e.hours) || '0:00' }));
         const dayTotal   = hoursToHHMM(rawEntries.reduce((s, e) => s + parseFloat(e.hours), 0)) || '0:00';
@@ -155,7 +155,7 @@ const HoursController = {
     try {
       const [entries, projects] = await Promise.all([
         TimeEntry.findByUser(req.session.userId, { from: weekDays[0].date, to: weekDays[4].date }),
-        Project.findAll(true),
+        req.session.userRole === 'admin' ? Project.findAll(true) : Project.findByUser(req.session.userId),
       ]);
 
       // Group entries by project_id + task_id
@@ -277,7 +277,7 @@ const HoursController = {
         req.flash('error', 'Entry not found.');
         return res.redirect('/hours');
       }
-      const projects = await Project.findAll(true);
+      const projects = req.session.userRole === 'admin' ? await Project.findAll(true) : await Project.findByUser(req.session.userId);
       const tasks    = entry.project_id ? await Task.findByProject(entry.project_id, true) : [];
       res.render('hours/form', {
         title: 'Edit Hours',

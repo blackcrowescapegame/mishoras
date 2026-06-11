@@ -274,3 +274,20 @@ main {
   color: #343a40;
 }
 
+/* ── Tom Select – modal / standalone overrides ──────────────────────────── */
+/* Make Tom Select wrapper fill Bootstrap input-group */
+.input-group .ts-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+.input-group .ts-wrapper .ts-control {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  border-left: none !important;
+}
+.input-group .ts-wrapper .ts-control:focus-within {
+  border-color: #86b7fe !important;
+  box-shadow: 0 0 0 0.18rem rgba(13,110,253,.15) !important;
+  z-index: 3;
+}
+

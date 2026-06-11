@@ -11,6 +11,13 @@ const User = {
     return result.recordset[0] || null;
   },
 
+  async findByEmailAny(email) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('email', sql.NVarChar, email)
+      .query('SELECT * FROM users WHERE email = @email');
+    return result.recordset[0] || null;
+  },
   async findById(id) {
     const pool = await getPool();
     const result = await pool.request()
@@ -116,15 +123,38 @@ const User = {
 
   async setProjects(userId, projectIds) {
     const pool = await getPool();
-    await pool.request()
+
+    // Get current assignments to detect changes
+    const current = await pool.request()
       .input('uid', sql.Int, userId)
-      .query('DELETE FROM user_projects WHERE user_id = @uid');
-    for (const pid of projectIds) {
+      .query('SELECT project_id FROM user_projects WHERE user_id = @uid');
+    const currentIds = current.recordset.map(r => r.project_id).sort((a, b) => a - b);
+    const newIds     = [...new Set(projectIds.map(Number).filter(Boolean))].sort((a, b) => a - b);
+
+    // Nothing changed — skip entirely
+    if (currentIds.length === newIds.length && currentIds.every((v, i) => v === newIds[i])) return;
+
+    const toRemove = currentIds.filter(id => !newIds.includes(id));
+    const toAdd    = newIds.filter(id => !currentIds.includes(id));
+
+    // Delete only removed entries
+    if (toRemove.length) {
       await pool.request()
         .input('uid', sql.Int, userId)
-        .input('pid', sql.Int, pid)
-        .query(`IF NOT EXISTS (SELECT 1 FROM user_projects WHERE user_id=@uid AND project_id=@pid)
-                INSERT INTO user_projects (user_id, project_id) VALUES (@uid, @pid)`);
+        .query(`DELETE FROM user_projects
+                WHERE user_id = @uid
+                  AND project_id IN (${toRemove.join(',')})`);
+    }
+
+    // Insert new entries in parallel
+    if (toAdd.length) {
+      await Promise.all(toAdd.map(pid =>
+        pool.request()
+          .input('uid', sql.Int, userId)
+          .input('pid', sql.Int, pid)
+          .query(`IF NOT EXISTS (SELECT 1 FROM user_projects WHERE user_id=@uid AND project_id=@pid)
+                  INSERT INTO user_projects (user_id, project_id) VALUES (@uid, @pid)`)
+      ));
     }
   },
 

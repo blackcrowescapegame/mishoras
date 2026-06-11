@@ -49,10 +49,8 @@ router.delete('/tasks/:id',    TasksController.delete);
 /* Reports */
 router.get('/reports', ReportsController.index);
 
-/* Import & Reset */
+/* Import */
 router.get('/import',                                         ImportController.show);
-router.post('/import/reset',                                  ImportController.resetData);
-router.post('/import/reset-time-entries', ImportController.resetTimeEntries);
 router.post('/import/time-entries', upload.single('file'),    ImportController.importTimeEntries);
 router.post('/import/:type', upload.single('file'),           ImportController.importFile);
 

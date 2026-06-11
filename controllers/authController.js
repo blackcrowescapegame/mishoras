@@ -20,9 +20,13 @@ const AuthController = {
       return res.redirect('/auth/login');
     }
     try {
-      const user = await User.findByEmail(email.trim().toLowerCase());
+      const user = await User.findByEmailAny(email.trim().toLowerCase());
       if (!user || !(await bcrypt.compare(password, user.password))) {
-        req.flash('error', 'Invalid email or password.');
+        req.flash('error', 'Correo o contraseña incorrectos.');
+        return res.redirect('/auth/login');
+      }
+      if (!user.active) {
+        req.flash('error', 'Tu cuenta está desactivada. Contacta a un administrador para habilitarla.');
         return res.redirect('/auth/login');
       }
       req.session.userId   = user.id;
@@ -32,7 +36,7 @@ const AuthController = {
       res.redirect(user.role === 'admin' ? '/admin' : '/hours');
     } catch (err) {
       console.error(err);
-      req.flash('error', 'An error occurred. Please try again.');
+      req.flash('error', 'Ocurrió un error. Por favor intente de nuevo.');
       res.redirect('/auth/login');
     }
   },

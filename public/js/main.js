@@ -28,6 +28,23 @@ document.addEventListener('DOMContentLoaded', function () {
     return parseFloat(s) || 0;
   }
 
+  // ── Tom Select: searchable project dropdown ────────────────────────────────
+  function initProjectSelect(el) {
+    if (!el || el.tomselect) return;
+    const ts = new TomSelect(el, {
+      allowEmptyOption: true,
+      maxOptions: null,
+      selectOnTab: true,
+      placeholder: el.options[0] ? el.options[0].textContent : 'Select a project...',
+    });
+    // Ensure wrapper fills flex containers (Bootstrap input-group)
+    if (el.closest && el.closest('.input-group')) {
+      ts.wrapper.style.flex = '1';
+      ts.wrapper.style.minWidth = '0';
+    }
+    return ts;
+  }
+
   // ── Week view (timesheet grid) ─────────────────────────────────────────────
   if (document.getElementById('timesheetForm')) {
     const cfg = window.TS_CONFIG || {};
@@ -268,7 +285,9 @@ document.addEventListener('DOMContentLoaded', function () {
       const newRow = tmp.firstElementChild;
       container.appendChild(newRow);
       bindRow(newRow);
-      newRow.querySelector('.ts-project-select').focus();
+      const newProjSel = newRow.querySelector('.ts-project-select');
+      if (newProjSel && newProjSel.tomselect) { newProjSel.tomselect.focus(); }
+      else if (newProjSel) { newProjSel.focus(); }
     });
 
     recalcTotals();
@@ -299,6 +318,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const modalTaskSel    = document.getElementById('modalTaskId');
 
     if (modalProjectSel) {
+      initProjectSelect(modalProjectSel);
       modalProjectSel.addEventListener('change', function () {
         const pid = this.value;
         modalTaskSel.innerHTML = '<option value="">Select a task...</option>';
@@ -322,6 +342,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (modalEl) {
       modalEl.addEventListener('hidden.bs.modal', function () {
         addTimeLogForm.reset();
+        if (modalProjectSel && modalProjectSel.tomselect) modalProjectSel.tomselect.setValue('', true);
         if (modalTaskSel) modalTaskSel.innerHTML = '<option value="">Select a task...</option>';
         const dur = document.getElementById('modalDuration');
         if (dur) dur.classList.remove('is-invalid');
@@ -353,23 +374,36 @@ document.addEventListener('DOMContentLoaded', function () {
     const editDesc       = document.getElementById('editModalDescription');
     const editDur        = document.getElementById('editModalDuration');
 
-    // Populate modal when triggered
+    if (editProjectSel) initProjectSelect(editProjectSel);
+
     editModal.addEventListener('show.bs.modal', function (event) {
       const btn = event.relatedTarget;
-      editForm.action = '/hours/' + btn.dataset.id + '?_method=PUT';
+      const entryId = btn.dataset.id;
+      editForm.action = '/hours/' + entryId + '?_method=PUT';
+      if (deleteForm) {
+        deleteForm.action = '/hours/' + entryId + '?_method=DELETE';
+        const delReturnTo = document.getElementById('editModalDeleteReturnTo');
+        if (delReturnTo) delReturnTo.value = window.location.href.replace(window.location.origin, '');
+      }
       const projectId = btn.dataset.projectId;
       const taskId    = btn.dataset.taskId;
 
-      editProjectSel.value = projectId || '';
+      if (editProjectSel.tomselect) {
+        editProjectSel.tomselect.setValue(projectId || '', true);
+      } else {
+        editProjectSel.value = projectId || '';
+      }
       editDesc.value = btn.dataset.description || '';
       editDur.value  = btn.dataset.hoursStr || '';
       editDur.classList.remove('is-invalid');
 
       // Set correct entry_date and _returnTo for the clicked cell
-      const dateInput   = editForm.querySelector('[name="entry_date"]');
-      const returnInput = editForm.querySelector('[name="_returnTo"]');
+      // Only on the Track page (TS_CONFIG is defined); on detailed.ejs the
+      // inline script handles returnTo and entry_date correctly already.
       const cfgView = (window.TS_CONFIG || {}).view;
-      if (btn.dataset.date) {
+      if (cfgView && btn.dataset.date) {
+        const dateInput   = editForm.querySelector('[name="entry_date"]');
+        const returnInput = editForm.querySelector('[name="_returnTo"]');
         if (dateInput) dateInput.value = btn.dataset.date;
         if (returnInput) {
           returnInput.value = cfgView === 'week'
@@ -398,7 +432,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Reset on close
     editModal.addEventListener('hidden.bs.modal', function () {
+      editFormSubmitting = false;
       editForm.reset();
+      if (editProjectSel && editProjectSel.tomselect) editProjectSel.tomselect.setValue('', true);
       editTaskSel.innerHTML = '<option value="">Select a task...</option>';
       editDur.classList.remove('is-invalid');
     });
@@ -421,8 +457,16 @@ document.addEventListener('DOMContentLoaded', function () {
         .catch(function () {});
     });
 
-    // Convert hh:mm to decimal before submit
+    // Convert hh:mm to decimal before submit; guard against double-submission
+    var editFormSubmitting = false;
     editForm.addEventListener('submit', function (e) {
+      // Safety check: ensure action points to a specific entry
+      if (!editForm.action || editForm.action === window.location.href || !/\/hours\/\d+/.test(editForm.action)) {
+        e.preventDefault();
+        console.error('Edit form action not set correctly:', editForm.action);
+        return;
+      }
+      if (editFormSubmitting) { e.preventDefault(); return; }
       const dec = fromHHMM(editDur.value);
       if (dec <= 0) {
         e.preventDefault();
@@ -432,8 +476,22 @@ document.addEventListener('DOMContentLoaded', function () {
       }
       editDur.classList.remove('is-invalid');
       editDur.value = dec.toFixed(4);
+      editFormSubmitting = true;
     });
+
+    // Delete button inside edit modal
+    const deleteBtn  = document.getElementById('editModalDeleteBtn');
+    const deleteForm = document.getElementById('editModalDeleteForm');
+    if (deleteBtn && deleteForm) {
+      deleteBtn.addEventListener('click', function () {
+        if (!confirm('¿Seguro que deseas eliminar este registro de tiempo? Esta acción es irreversible.')) return;
+        deleteForm.submit();
+      });
+    }
   }
+
+  // ── Standalone hours form (form.ejs) ───────────────────────────────────────
+  initProjectSelect(document.getElementById('project_id'));
 });
 
 

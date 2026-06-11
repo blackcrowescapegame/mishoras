@@ -15,6 +15,19 @@ const Project = {
     return result.recordset;
   },
 
+  async findByUser(userId) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('uid', sql.Int, userId)
+      .query(`SELECT p.*, c.name AS client_name
+              FROM projects p
+              JOIN clients c ON c.id = p.client_id
+              JOIN user_projects up ON up.project_id = p.id
+              WHERE up.user_id = @uid AND p.active = 1
+              ORDER BY c.name, p.name`);
+    return result.recordset;
+  },
+
   async findPaged({ page = 1, pageSize = 10, onlyActive = false, sort = 'name', dir = 'asc', q = '' } = {}) {
     const pool  = await getPool();
     const ALLOWED = { name: 'p.name', client_name: 'c.name', custom_id: 'p.custom_id', active: 'p.active', created_at: 'p.created_at', flat_fee: 'p.flat_fee', total_hours: 'p.total_hours' };
