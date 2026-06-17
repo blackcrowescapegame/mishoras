@@ -1,10 +1,10 @@
 <%- include('../partials/header') %>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h2 class="fw-bold mb-0">Detailed View</h2>
+  <h2 class="fw-bold mb-0">Vista Detallada</h2>
   <div class="dropdown">
     <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-      <i class="bi bi-download me-1"></i>Download
+      <i class="bi bi-download me-1"></i>Descargar
     </button>
     <ul class="dropdown-menu dropdown-menu-end">
       <li>
@@ -35,9 +35,9 @@
           <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
             <%
               const presetLabels = {
-                today: 'Today', this_week: 'This week', this_month: 'This month',
-                last_week: 'Last week', last_month: 'Last month',
-                this_year: 'This year', custom: 'Custom'
+                today: 'Hoy', this_week: 'Esta semana', this_month: 'Este mes',
+                last_week: 'Semana pasada', last_month: 'Mes pasado',
+                this_year: 'Este año', custom: 'Personalizado'
               };
             %>
             <%= presetLabels[preset] || 'This week' %>
@@ -64,7 +64,7 @@
       <!-- Client filter -->
       <div class="col-auto">
         <select name="client_id" class="form-select form-select-sm" style="min-width:150px" id="clientFilter">
-          <option value="">All clients</option>
+          <option value="">Todos los clientes</option>
           <% clients.forEach(function(c) { %>
           <option value="<%= c.id %>" <%= filterClientId == c.id ? 'selected' : '' %>><%= c.name %></option>
           <% }) %>
@@ -74,7 +74,7 @@
       <!-- Project filter -->
       <div class="col-auto">
         <select name="project_id" class="form-select form-select-sm" style="min-width:170px" id="projectFilter">
-          <option value="">All projects</option>
+          <option value="">Todos los proyectos</option>
           <%
             const groupedProj = {};
             projects.forEach(function(p) {
@@ -97,7 +97,7 @@
       <!-- User filter (admin only) -->
       <div class="col-auto">
         <select name="user_id" class="form-select form-select-sm" style="min-width:150px">
-          <option value="">All users</option>
+          <option value="">Todos los usuarios</option>
           <% users.forEach(function(u) { %>
           <option value="<%= u.id %>" <%= filterUserId == u.id ? 'selected' : '' %>><%= u.name %></option>
           <% }) %>
@@ -108,10 +108,10 @@
       <!-- Apply button -->
       <div class="col-auto ms-auto">
         <button type="submit" class="btn btn-sm btn-primary">
-          <i class="bi bi-funnel me-1"></i>Apply
+          <i class="bi bi-funnel me-1"></i>Aplicar
         </button>
         <a href="/hours/detailed" class="btn btn-sm btn-outline-secondary ms-1">
-          <i class="bi bi-x"></i> Clear
+          <i class="bi bi-x"></i> Limpiar
         </a>
       </div>
 
@@ -124,7 +124,7 @@
 <div class="card border-0 shadow-sm">
   <div class="card-header bg-white border-bottom py-2 px-3 d-flex align-items-center justify-content-between">
     <span class="small text-muted fw-semibold">
-      <%= total %> entr<%= total === 1 ? 'y' : 'ies' %>
+      <%= total %> registro<%= total === 1 ? '' : 's' %>
       &nbsp;·&nbsp;
       <strong class="text-dark"><%= totalHours %></strong> total
     </span>
@@ -132,7 +132,7 @@
       const fmt = function(ds) {
         if (!ds) return '';
         const d = new Date(ds + 'T00:00:00');
-        return d.getDate() + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()] + ' ' + d.getFullYear();
+        return d.getDate() + ' ' + ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][d.getMonth()] + ' ' + d.getFullYear();
       };
     %>
     <span class="small text-muted"><%= fmt(from) %> → <%= fmt(to) %></span>
@@ -141,20 +141,20 @@
   <% if (!entries.length) { %>
   <div class="text-center py-5 text-muted">
     <i class="bi bi-clock" style="font-size:2.5rem;opacity:.3"></i>
-    <p class="fw-semibold mt-3 mb-1">No entries found for this period.</p>
+    <p class="fw-semibold mt-3 mb-1">No se encontraron registros para este período.</p>
   </div>
   <% } else { %>
   <div class="table-responsive">
     <table class="table table-hover mb-0 align-middle small">
       <thead class="table-light">
         <tr>
-          <th class="ps-3">DATE</th>
-          <% if (isAdmin) { %><th>USER</th><% } %>
-          <th>CLIENT</th>
-          <th>PROJECT</th>
-          <th>TASK</th>
-          <th>DESCRIPTION</th>
-          <th class="text-end pe-3">DURATION</th>
+          <th class="ps-3">FECHA</th>
+          <% if (isAdmin) { %><th>USUARIO</th><% } %>
+          <th>CLIENTE</th>
+          <th>PROYECTO</th>
+          <th>TAREA</th>
+          <th>DESCRIPCIÓN</th>
+          <th class="text-end pe-3">DURACIÓN</th>
           <th></th>
         </tr>
       </thead>
@@ -165,7 +165,7 @@
             <%
               const ed = new Date((e.entry_date instanceof Date ? e.entry_date.toISOString() : String(e.entry_date)).slice(0,10) + 'T00:00:00');
               const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-              const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+              const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
               const yyyy = ed.getFullYear();
               const mm   = String(ed.getMonth()+1).padStart(2,'0');
               const dd   = String(ed.getDate()).padStart(2,'0');
@@ -189,17 +189,9 @@
                 data-hours-str="<%= e.hoursStr %>"
                 data-date="<%= (e.entry_date instanceof Date ? e.entry_date.toISOString() : String(e.entry_date)).slice(0,10) %>"
                 data-description="<%= (e.description || '').replace(/"/g, '&quot;') %>"
-                title="Edit">
+                title="Editar">
                 <i class="bi bi-pencil"></i>
               </button>
-              <form action="/hours/<%= e.id %>?_method=DELETE" method="POST" class="d-inline"
-                    onsubmit="return confirm('Delete this entry?')">
-                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-                <input type="hidden" name="_returnTo" value="/hours/detailed?<%= new URLSearchParams(Object.fromEntries(Object.entries({preset,from,to,client_id:filterClientId||'',project_id:filterProjectId||'',task_id:filterTaskId||'',user_id:filterUserId||''}).filter(([,v])=>v!==''&&v!==null))).toString() %>" />
-                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1">
-                  <i class="bi bi-trash"></i>
-                </button>
-              </form>
             </div>
           </td>
         </tr>
@@ -225,7 +217,7 @@
     const pEnd   = Math.min(totalPages, page + WING);
   %>
   <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top small text-muted">
-    <span>Page <%= page %> of <%= totalPages %></span>
+    <span>Página <%= page %> de <%= totalPages %></span>
     <nav>
       <ul class="pagination pagination-sm mb-0">
         <li class="page-item <%= page === 1 ? 'disabled' : '' %>">
@@ -256,7 +248,7 @@
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header border-0 pb-1">
-        <h5 class="modal-title fw-bold">Edit time log</h5>
+        <h5 class="modal-title fw-bold">Editar registro de horas</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <form method="POST" id="editTimeLogForm" novalidate>
@@ -267,11 +259,11 @@
         <div class="modal-body pt-2">
           <div class="row g-4">
             <div class="col-md-7">
-              <label class="form-label small text-muted fw-semibold text-uppercase">Track on</label>
+              <label class="form-label small text-muted fw-semibold text-uppercase">Registrar en</label>
               <div class="input-group mb-2">
                 <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-briefcase"></i></span>
                 <select id="editModalProjectId" name="project_id" class="form-select border-start-0" required>
-                  <option value="">Select a project...</option>
+                  <option value="">Seleccionar proyecto...</option>
                   <%
                     const groupedEdit = {};
                     projects.forEach(function(p) {
@@ -291,14 +283,14 @@
               <div class="input-group mb-3">
                 <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-check2"></i></span>
                 <select id="editModalTaskId" name="task_id" class="form-select border-start-0">
-                  <option value="">Select a task...</option>
+                  <option value="">Seleccionar tarea...</option>
                 </select>
               </div>
               <textarea id="editModalDescription" name="description" class="form-control" rows="3"
-                        placeholder="Add log description..."></textarea>
+                        placeholder="Agregar descripción..."></textarea>
             </div>
             <div class="col-md-5">
-              <label class="form-label small text-muted fw-semibold text-uppercase">Duration</label>
+              <label class="form-label small text-muted fw-semibold text-uppercase">Duración</label>
               <div class="input-group mb-3">
                 <span class="input-group-text bg-white text-muted"><i class="bi bi-hourglass-split"></i></span>
                 <input type="text" id="editModalDuration" name="hours" class="form-control"
@@ -311,12 +303,12 @@
           </div>
         </div>
         <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn btn-outline-secondary me-auto" data-bs-dismiss="modal">Dismiss</button>
+          <button type="button" class="btn btn-outline-secondary me-auto" data-bs-dismiss="modal">Cancelar</button>
           <button type="button" class="btn btn-outline-danger" id="editModalDeleteBtn">
             <i class="bi bi-trash3 me-1"></i>Eliminar
           </button>
           <button type="submit" class="btn btn-primary">
-            <i class="bi bi-floppy me-1"></i>Save changes
+            <i class="bi bi-floppy me-1"></i>Guardar cambios
           </button>
         </div>
       </form>

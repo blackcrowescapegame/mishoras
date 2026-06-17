@@ -35,7 +35,8 @@ document.addEventListener('DOMContentLoaded', function () {
       allowEmptyOption: true,
       maxOptions: null,
       selectOnTab: true,
-      placeholder: el.options[0] ? el.options[0].textContent : 'Select a project...',
+      dropdownParent: 'body',
+      placeholder: el.options[0] ? el.options[0].textContent : 'Seleccionar proyecto...',
     });
     // Ensure wrapper fills flex containers (Bootstrap input-group)
     if (el.closest && el.closest('.input-group')) {
@@ -86,10 +87,10 @@ document.addEventListener('DOMContentLoaded', function () {
       if (weekEl) weekEl.textContent = toHHMM(grand) || '0:00';
     }
 
-    function loadTasks(projectSelect, taskSelect, selectedTaskId) {
+    function loadTasks(projectSelect, taskSelect, selectedTaskId, callback) {
       const pid = projectSelect.value;
-      taskSelect.innerHTML = '<option value="">Select a task...</option>';
-      if (!pid) return;
+      taskSelect.innerHTML = '<option value="">Seleccionar tarea...</option>';
+      if (!pid) { if (callback) callback(); return; }
       fetch('/hours/api/tasks/' + pid)
         .then(function (r) { return r.json(); })
         .then(function (tasks) {
@@ -100,8 +101,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (selectedTaskId && t.id == selectedTaskId) opt.selected = true;
             taskSelect.appendChild(opt);
           });
+          if (callback) callback();
         })
-        .catch(function () {});
+        .catch(function () { if (callback) callback(); });
     }
 
     function buildProjectOptions() {
@@ -110,7 +112,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!byClient[p.client_name]) byClient[p.client_name] = [];
         byClient[p.client_name].push(p);
       });
-      let html = '<option value="">Select a project...</option>';
+      let html = '<option value="">Seleccionar proyecto...</option>';
       Object.keys(byClient).forEach(function (cn) {
         const esc = cn.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
         html += '<optgroup label="' + esc + '">';
@@ -134,7 +136,7 @@ document.addEventListener('DOMContentLoaded', function () {
       });
       return '<div class="ts-row" data-row="' + idx + '">' +
         '<div class="ts-col-project"><select name="rows[' + idx + '][project_id]" class="ts-select ts-project-select">' + buildProjectOptions() + '</select></div>' +
-        '<div class="ts-col-task"><select name="rows[' + idx + '][task_id]" class="ts-select ts-task-select"><option value="">Select a task...</option></select></div>' +
+        '<div class="ts-col-task"><select name="rows[' + idx + '][task_id]" class="ts-select ts-task-select"><option value="">Seleccionar tarea...</option></select></div>' +
         dayCells +
         '<div class="ts-col-total ts-row-total">0:00</div>' +
         '</div>';
@@ -144,11 +146,59 @@ document.addEventListener('DOMContentLoaded', function () {
       const projectSel = rowEl.querySelector('.ts-project-select');
       const taskSel    = rowEl.querySelector('.ts-task-select');
       if (projectSel) {
+        initProjectSelect(projectSel);
+        var prevProjectId = projectSel.value;
+        var prevTaskId    = taskSel ? (taskSel.dataset.selected || taskSel.value || '') : '';
+
         projectSel.addEventListener('change', function () {
-          loadTasks(projectSel, taskSel, null);
-          sortTsRows();
+          var newProjectId = projectSel.value;
+          var affected = getExistingCells(rowEl);
+          if (affected.length > 0) {
+            showRowChangeConfirm(
+              'Esta fila tiene ' + affected.length + ' registro' + (affected.length === 1 ? '' : 's') + ' guardado' + (affected.length === 1 ? '' : 's') + '. Cambiar el proyecto los actualizará de inmediato. ¿Continuar?',
+              function () {
+                prevProjectId = newProjectId;
+                prevTaskId    = '';
+                // loadTasks clears the task select synchronously before the fetch,
+                // so autoSaveCell will correctly send task_id = null
+                loadTasks(projectSel, taskSel, null);
+                affected.forEach(function (inp) { autoSaveCell(inp, rowEl); });
+                sortTsRows();
+              },
+              function () {
+                projectSel.value = prevProjectId;
+                loadTasks(projectSel, taskSel, prevTaskId);
+              }
+            );
+          } else {
+            prevProjectId = newProjectId;
+            loadTasks(projectSel, taskSel, null);
+            sortTsRows();
+          }
         });
-        if (projectSel.value) loadTasks(projectSel, taskSel, taskSel.dataset.selected || taskSel.value || null);
+
+        if (taskSel) {
+          taskSel.addEventListener('change', function () {
+            var newTaskId = taskSel.value;
+            var affected = getExistingCells(rowEl);
+            if (affected.length > 0) {
+              showRowChangeConfirm(
+                'Esta fila tiene ' + affected.length + ' registro' + (affected.length === 1 ? '' : 's') + ' guardado' + (affected.length === 1 ? '' : 's') + '. Cambiar la tarea los actualizará de inmediato. ¿Continuar?',
+                function () {
+                  prevTaskId = newTaskId;
+                  affected.forEach(function (inp) { autoSaveCell(inp, rowEl); });
+                },
+                function () {
+                  taskSel.value = prevTaskId;
+                }
+              );
+            } else {
+              prevTaskId = newTaskId;
+            }
+          });
+        }
+
+        if (projectSel.value) loadTasks(projectSel, taskSel, taskSel ? (taskSel.dataset.selected || taskSel.value || null) : null);
       }
       rowEl.querySelectorAll('.ts-time-input').forEach(function (inp) {
         if (inp.value) inp.classList.add('has-value');
@@ -160,6 +210,34 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); this.blur(); } });
       });
+    }
+
+    function getExistingCells(rowEl) {
+      return Array.from(rowEl.querySelectorAll('.ts-time-input')).filter(function (inp) {
+        return inp.dataset.entryId && inp.value.trim();
+      });
+    }
+
+    function showRowChangeConfirm(msg, onConfirm, onCancel) {
+      var modalEl = document.getElementById('rowChangeConfirmModal');
+      if (!modalEl) { onConfirm(); return; }
+      document.getElementById('rowChangeConfirmMsg').textContent = msg;
+      var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      // Clone the OK button to remove any previously attached listeners
+      var okBtn    = document.getElementById('rowChangeConfirmOk');
+      var newOkBtn = okBtn.cloneNode(true);
+      okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+      var confirmed = false;
+      newOkBtn.addEventListener('click', function () {
+        confirmed = true;
+        modal.hide();
+      });
+      function onHidden() {
+        modalEl.removeEventListener('hidden.bs.modal', onHidden);
+        if (confirmed) { onConfirm(); } else { onCancel(); }
+      }
+      modalEl.addEventListener('hidden.bs.modal', onHidden);
+      modal.show();
     }
 
     var toastTimer = null;
@@ -198,6 +276,21 @@ document.addEventListener('DOMContentLoaded', function () {
       // If clearing a cell with no existing entry, skip
       if (!hrs && !entryId) return;
 
+      // Validate max 24 hours
+      if (hrs) {
+        var parsedVal = fromHHMM(hrs);
+        if (parsedVal > 24) {
+          showToast('El valor "' + hrs + '" supera el máximo permitido de 24 horas por día.', true);
+          inp.focus();
+          return;
+        }
+      }
+
+      // Preserve the existing description from the pencil button (if present)
+      var cellDivPre   = inp.parentElement;
+      var existingEditBtn = cellDivPre ? cellDivPre.querySelector('.ts-edit-btn') : null;
+      var existingDesc = existingEditBtn ? (existingEditBtn.dataset.description || '') : '';
+
       var body = {
         _csrf:       window.TS_CSRF || '',
         entry_id:    entryId,
@@ -205,7 +298,7 @@ document.addEventListener('DOMContentLoaded', function () {
         task_id:     taskSel ? (taskSel.value || '') : '',
         entry_date:  entryDate,
         hours:       hrs,
-        description: '',
+        description: existingDesc,
       };
 
       fetch('/hours/api/autosave', {
@@ -222,7 +315,7 @@ document.addEventListener('DOMContentLoaded', function () {
             var cellDiv = inp.parentElement;
             var existingBtn = cellDiv.querySelector('.ts-edit-btn');
             if (existingBtn) existingBtn.remove();
-            showToast('Entry deleted');
+            showToast('Registro eliminado');
           } else if (!data.noop) {
             inp.dataset.entryId = data.id || '';
             // Inject or update the pencil edit button
@@ -246,14 +339,14 @@ document.addEventListener('DOMContentLoaded', function () {
             btn.dataset.taskName    = taskName;
             btn.dataset.hoursStr    = inp.value;
             btn.dataset.date        = entryDate;
-            btn.dataset.description = '';
-            showToast('Saved \u2713');
+            btn.dataset.description = existingDesc;
+            showToast('Guardado ✓');
           }
         } else {
-          showToast(data.error || 'Save failed', true);
+          showToast(data.error || 'Error al guardar', true);
         }
       })
-      .catch(function () { showToast('Save failed', true); });
+      .catch(function () { showToast('Error al guardar', true); });
     }
 
     document.querySelectorAll('#tsRows .ts-row').forEach(bindRow);
@@ -285,9 +378,6 @@ document.addEventListener('DOMContentLoaded', function () {
       const newRow = tmp.firstElementChild;
       container.appendChild(newRow);
       bindRow(newRow);
-      const newProjSel = newRow.querySelector('.ts-project-select');
-      if (newProjSel && newProjSel.tomselect) { newProjSel.tomselect.focus(); }
-      else if (newProjSel) { newProjSel.focus(); }
     });
 
     recalcTotals();
@@ -321,7 +411,7 @@ document.addEventListener('DOMContentLoaded', function () {
       initProjectSelect(modalProjectSel);
       modalProjectSel.addEventListener('change', function () {
         const pid = this.value;
-        modalTaskSel.innerHTML = '<option value="">Select a task...</option>';
+        modalTaskSel.innerHTML = '<option value="">Seleccionar tarea...</option>';
         if (!pid) return;
         fetch('/hours/api/tasks/' + pid)
           .then(function (r) { return r.json(); })
@@ -343,7 +433,7 @@ document.addEventListener('DOMContentLoaded', function () {
       modalEl.addEventListener('hidden.bs.modal', function () {
         addTimeLogForm.reset();
         if (modalProjectSel && modalProjectSel.tomselect) modalProjectSel.tomselect.setValue('', true);
-        if (modalTaskSel) modalTaskSel.innerHTML = '<option value="">Select a task...</option>';
+        if (modalTaskSel) modalTaskSel.innerHTML = '<option value="">Seleccionar tarea...</option>';
         const dur = document.getElementById('modalDuration');
         if (dur) dur.classList.remove('is-invalid');
       });
@@ -413,7 +503,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       // Load tasks and pre-select
-      editTaskSel.innerHTML = '<option value="">Select a task...</option>';
+      editTaskSel.innerHTML = '<option value="">Seleccionar tarea...</option>';
       if (projectId) {
         fetch('/hours/api/tasks/' + projectId)
           .then(function (r) { return r.json(); })
@@ -435,14 +525,14 @@ document.addEventListener('DOMContentLoaded', function () {
       editFormSubmitting = false;
       editForm.reset();
       if (editProjectSel && editProjectSel.tomselect) editProjectSel.tomselect.setValue('', true);
-      editTaskSel.innerHTML = '<option value="">Select a task...</option>';
+      editTaskSel.innerHTML = '<option value="">Seleccionar tarea...</option>';
       editDur.classList.remove('is-invalid');
     });
 
     // Project change inside edit modal
     editProjectSel.addEventListener('change', function () {
       const pid = this.value;
-      editTaskSel.innerHTML = '<option value="">Select a task...</option>';
+      editTaskSel.innerHTML = '<option value="">Seleccionar tarea...</option>';
       if (!pid) return;
       fetch('/hours/api/tasks/' + pid)
         .then(function (r) { return r.json(); })

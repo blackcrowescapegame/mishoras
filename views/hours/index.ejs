@@ -2,12 +2,12 @@
 
 <!-- Page title + Week/Day toggle -->
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h2 class="fw-bold mb-0">Track</h2>
+  <h2 class="fw-bold mb-0">Registro</h2>
   <div class="btn-group" role="group" aria-label="View toggle">
     <a href="/hours?weekStart=<%= weekStart %>"
-       class="btn btn-sm <%= view === 'week' ? 'btn-secondary' : 'btn-outline-secondary' %>">Week</a>
+       class="btn btn-sm <%= view === 'week' ? 'btn-secondary' : 'btn-outline-secondary' %>">Semana</a>
     <a href="/hours?view=day&date=<%= currentDate %>"
-       class="btn btn-sm <%= view === 'day' ? 'btn-secondary' : 'btn-outline-secondary' %>">Day</a>
+       class="btn btn-sm <%= view === 'day' ? 'btn-secondary' : 'btn-outline-secondary' %>">Día</a>
   </div>
 </div>
 
@@ -21,7 +21,7 @@
     <a href="/hours?weekStart=<%= prevWeek %>" class="btn btn-sm btn-outline-secondary ts-nav-btn">
       <i class="bi bi-chevron-left"></i>
     </a>
-    <button type="button" class="btn btn-sm btn-link fw-semibold ts-week-label p-0 text-decoration-none" id="weekLabelBtn" title="Jump to week">
+    <button type="button" class="btn btn-sm btn-link fw-semibold ts-week-label p-0 text-decoration-none" id="weekLabelBtn" title="Saltar a semana">
       <%= weekLabel %> <i class="bi bi-calendar3 ms-1" style="font-size:.8rem"></i>
     </button>
     <input type="date" id="weekJumpPicker" value="<%= weekStart %>" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0;" />
@@ -29,7 +29,7 @@
       <i class="bi bi-chevron-right"></i>
     </a>
     <% if (!isCurrentWeek) { %>
-    <a href="/hours" class="btn btn-sm btn-outline-secondary ts-nav-btn" title="Go to current week">
+    <a href="/hours" class="btn btn-sm btn-outline-secondary ts-nav-btn" title="Ir a la semana actual">
       <i class="bi bi-house"></i>
     </a>
     <% } %>
@@ -46,8 +46,8 @@
       <div class="ts-grid">
         <!-- Header row -->
         <div class="ts-header-row">
-          <div class="ts-col-project ts-th">PROJECT <span class="text-danger">*</span></div>
-          <div class="ts-col-task ts-th">TASK</div>
+          <div class="ts-col-project ts-th">PROYECTO <span class="text-danger">*</span></div>
+          <div class="ts-col-task ts-th">TAREA</div>
           <% weekDays.forEach(function(wd, wi) { %>
           <div class="ts-col-day ts-th <%= wd.isToday ? 'ts-today' : '' %>">
             <div class="ts-day-name"><%= wd.label %>, <%= wd.num %> <%= wd.month %></div>
@@ -66,7 +66,7 @@
           <div class="ts-row" data-row="<%= i %>">
             <div class="ts-col-project">
               <select name="rows[<%= i %>][project_id]" class="ts-select ts-project-select">
-                <option value="">Select a project...</option>
+                <option value="">Seleccionar proyecto...</option>
                 <%
                   const groupedRow = {};
                   projects.forEach(function(p) {
@@ -85,7 +85,7 @@
             </div>
             <div class="ts-col-task">
               <select name="rows[<%= i %>][task_id]" class="ts-select ts-task-select" data-selected="<%= row.task_id || '' %>">
-                <option value="">Select a task...</option>
+                <option value="">Seleccionar tarea...</option>
                 <% if (row.task_id) { %>
                 <option value="<%= row.task_id %>" selected><%= row.task_name %></option>
                 <% } %>
@@ -113,7 +113,7 @@
                 data-hours-str="<%= cell.hhmm %>"
                 data-date="<%= wd.date %>"
                 data-description="<%= (cell.description || '').replace(/"/g, '&quot;') %>"
-                title="Edit entry"><i class="bi bi-pencil-square"></i></button>
+                title="Editar registro"><i class="bi bi-pencil-square"></i></button>
               <% } %>
             </div>
             <% }) %>
@@ -136,7 +136,7 @@
       <!-- Actions -->
       <div class="ts-actions">
         <button type="button" class="btn btn-sm btn-outline-secondary" id="tsAddRow">
-          <i class="bi bi-plus"></i> Add timesheet row
+          <i class="bi bi-plus"></i> Agregar fila
         </button>
       </div>
     </form>
@@ -157,7 +157,7 @@
         <i class="bi bi-chevron-right"></i>
       </a>
       <% if (!isToday) { %>
-      <a href="/hours?view=day" class="btn btn-sm btn-outline-secondary ts-nav-btn" title="Go to today">
+      <a href="/hours?view=day" class="btn btn-sm btn-outline-secondary ts-nav-btn" title="Ir a hoy">
         <i class="bi bi-house"></i>
       </a>
       <% } %>
@@ -165,7 +165,7 @@
     <div class="d-flex align-items-center gap-3">
       <span class="small text-muted">Total: <strong class="text-dark"><%= dayTotal %></strong></span>
       <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addTimeLogModal">
-        <i class="bi bi-plus me-1"></i>Add time log
+        <i class="bi bi-plus me-1"></i>Agregar registro
       </button>
     </div>
   </div>
@@ -177,9 +177,9 @@
     <% if (!dayEntries.length) { %>
     <div class="text-center py-5 text-muted">
       <i class="bi bi-clock" style="font-size:2.5rem;opacity:.3"></i>
-      <p class="fw-semibold mt-3 mb-1">No time tracked on this day.</p>
+      <p class="fw-semibold mt-3 mb-1">Sin horas registradas en este día.</p>
       <p class="small mb-0">
-        <a href="#" data-bs-toggle="modal" data-bs-target="#addTimeLogModal">Add a time log</a> with a completed duration.
+        <a href="#" data-bs-toggle="modal" data-bs-target="#addTimeLogModal">Agregar un registro</a> con duración completada.
       </p>
     </div>
     <% } else { %>
@@ -222,7 +222,7 @@
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header border-0 pb-1">
-        <h5 class="modal-title fw-bold" id="addTimeLogModalLabel">Add time log</h5>
+        <h5 class="modal-title fw-bold" id="addTimeLogModalLabel">Agregar registro de horas</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form method="POST" action="/hours" id="addTimeLogForm" novalidate>
@@ -233,11 +233,11 @@
           <div class="row g-4">
             <!-- Left: project / task / description -->
             <div class="col-md-7">
-              <label class="form-label small text-muted fw-semibold text-uppercase ls-1">Track on</label>
+              <label class="form-label small text-muted fw-semibold text-uppercase ls-1">Registrar en</label>
               <div class="input-group mb-2">
                 <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-briefcase"></i></span>
                 <select id="modalProjectId" name="project_id" class="form-select border-start-0" required>
-                  <option value="">Select a project...</option>
+                  <option value="">Seleccionar proyecto...</option>
                   <%
                     const groupedDv = {};
                     projects.forEach(function(p) {
@@ -257,15 +257,15 @@
               <div class="input-group mb-3">
                 <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-check2"></i></span>
                 <select id="modalTaskId" name="task_id" class="form-select border-start-0">
-                  <option value="">Select a task...</option>
+                  <option value="">Seleccionar tarea...</option>
                 </select>
               </div>
               <textarea name="description" class="form-control" rows="3"
-                        placeholder="Add log description..."></textarea>
+                        placeholder="Agregar descripción..."></textarea>
             </div>
             <!-- Right: duration / date -->
             <div class="col-md-5">
-              <label class="form-label small text-muted fw-semibold text-uppercase ls-1">Duration</label>
+              <label class="form-label small text-muted fw-semibold text-uppercase ls-1">Duración</label>
               <div class="input-group mb-3">
                 <span class="input-group-text bg-white text-muted"><i class="bi bi-hourglass-split"></i></span>
                 <input type="text" id="modalDuration" name="hours" class="form-control"
@@ -279,9 +279,9 @@
           </div>
         </div>
         <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn btn-outline-secondary me-auto" data-bs-dismiss="modal">Dismiss</button>
+          <button type="button" class="btn btn-outline-secondary me-auto" data-bs-dismiss="modal">Cancelar</button>
           <button type="submit" class="btn btn-primary">
-            <i class="bi bi-plus me-1"></i>Add time log
+            <i class="bi bi-plus me-1"></i>Agregar registro
           </button>
         </div>
       </form>
@@ -296,7 +296,7 @@
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header border-0 pb-1">
-        <h5 class="modal-title fw-bold" id="editTimeLogModalLabel">Edit time log</h5>
+        <h5 class="modal-title fw-bold" id="editTimeLogModalLabel">Editar registro de horas</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form method="POST" id="editTimeLogForm" novalidate>
@@ -307,11 +307,11 @@
         <div class="modal-body pt-2">
           <div class="row g-4">
             <div class="col-md-7">
-              <label class="form-label small text-muted fw-semibold text-uppercase ls-1">Track on</label>
+              <label class="form-label small text-muted fw-semibold text-uppercase ls-1">Registrar en</label>
               <div class="input-group mb-2">
                 <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-briefcase"></i></span>
                 <select id="editModalProjectId" name="project_id" class="form-select border-start-0" required>
-                  <option value="">Select a project...</option>
+                  <option value="">Seleccionar proyecto...</option>
                   <%
                     const groupedEdit = {};
                     projects.forEach(function(p) {
@@ -331,14 +331,14 @@
               <div class="input-group mb-3">
                 <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-check2"></i></span>
                 <select id="editModalTaskId" name="task_id" class="form-select border-start-0">
-                  <option value="">Select a task...</option>
+                  <option value="">Seleccionar tarea...</option>
                 </select>
               </div>
               <textarea id="editModalDescription" name="description" class="form-control" rows="3"
-                        placeholder="Add log description..."></textarea>
+                        placeholder="Agregar descripción..."></textarea>
             </div>
             <div class="col-md-5">
-              <label class="form-label small text-muted fw-semibold text-uppercase ls-1">Duration</label>
+              <label class="form-label small text-muted fw-semibold text-uppercase ls-1">Duración</label>
               <div class="input-group mb-3">
                 <span class="input-group-text bg-white text-muted"><i class="bi bi-hourglass-split"></i></span>
                 <input type="text" id="editModalDuration" name="hours" class="form-control"
@@ -352,12 +352,12 @@
           </div>
         </div>
         <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn btn-outline-secondary me-auto" data-bs-dismiss="modal">Dismiss</button>
+          <button type="button" class="btn btn-outline-secondary me-auto" data-bs-dismiss="modal">Cancelar</button>
           <button type="button" class="btn btn-outline-danger" id="editModalDeleteBtn">
             <i class="bi bi-trash3 me-1"></i>Eliminar
           </button>
           <button type="submit" class="btn btn-primary">
-            <i class="bi bi-floppy me-1"></i>Save changes
+            <i class="bi bi-floppy me-1"></i>Guardar cambios
           </button>
         </div>
       </form>
@@ -371,6 +371,27 @@
   <input type="hidden" name="_csrf"     value="<%= csrfToken %>" />
   <input type="hidden" name="_returnTo" id="editModalDeleteReturnTo" value="" />
 </form>
+
+<!-- Row project/task change confirmation modal -->
+<div class="modal fade" id="rowChangeConfirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-1">
+        <h5 class="modal-title fw-bold"><i class="bi bi-arrow-repeat me-2 text-primary"></i>Confirmar actualización</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p id="rowChangeConfirmMsg" class="mb-0 text-muted small"></p>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="rowChangeConfirmCancel" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary btn-sm" id="rowChangeConfirmOk">
+          <i class="bi bi-floppy me-1"></i>Actualizar registros
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
   window.TS_CONFIG = {

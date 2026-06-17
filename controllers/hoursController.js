@@ -9,8 +9,8 @@ const ExcelJS   = require('exceljs');
 const PDFDoc    = require('pdfkit');
 
 /* ── Week helpers ── */
-const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const DAY_SHORT   = ['Mon','Tue','Wed','Thu','Fri'];
+const MONTH_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const DAY_SHORT   = ['Lun','Mar','Mié','Jue','Vie'];
 
 function getMondayOf(dateStr) {
   const d = new Date(dateStr + 'T00:00:00');
@@ -54,7 +54,7 @@ function formatWeekLabel(weekStart, today) {
   sun.setDate(sun.getDate() + 6);
   const label = `${mon.getDate()} ${MONTH_SHORT[mon.getMonth()]} → ${sun.getDate()} ${MONTH_SHORT[sun.getMonth()]} ${sun.getFullYear()}`;
   const isCurrentWeek = today >= weekStart && today <= sun.toISOString().slice(0, 10);
-  return { label: isCurrentWeek ? `This week, ${label}` : label, isCurrentWeek };
+  return { label: isCurrentWeek ? `Esta semana, ${label}` : label, isCurrentWeek };
 }
 
 /* ── Shared: resolve filters from query for detailedView & downloadDetailed ── */
@@ -104,8 +104,8 @@ const HoursController = {
       const isToday = currentDate === today;
       const d = new Date(currentDate + 'T00:00:00');
       const dowIdx = d.getDay() === 0 ? 6 : d.getDay() - 1;
-      const DAY_LONG = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-      const dayLabel = `${DAY_LONG[dowIdx]}, ${d.getDate()} ${MONTH_SHORT[d.getMonth()]}${isToday ? ' (Today)' : ''}`;
+      const DAY_LONG = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+      const dayLabel = `${DAY_LONG[dowIdx]}, ${d.getDate()} ${MONTH_SHORT[d.getMonth()]}${isToday ? ' (Hoy)' : ''}`;
       try {
         const [rawEntries, projects] = await Promise.all([
           TimeEntry.findByUser(req.session.userId, { from: currentDate, to: currentDate }),
@@ -126,7 +126,7 @@ const HoursController = {
         });
       } catch (err) {
         console.error(err);
-        req.flash('error', 'Could not load entries.');
+        req.flash('error', 'No se pudieron cargar los registros.');
         return res.redirect('/');
       }
     }
@@ -204,7 +204,7 @@ const HoursController = {
       });
     } catch (err) {
       console.error(err);
-      req.flash('error', 'Could not load entries.');
+      req.flash('error', 'No se pudieron cargar los registros.');
       res.redirect('/');
     }
   },
@@ -218,10 +218,26 @@ const HoursController = {
 
     const weekEnd = addDays(weekStart, 4);
 
+    const rows = req.body.rows ? (Array.isArray(req.body.rows) ? req.body.rows : Object.values(req.body.rows)) : [];
+
+    // Validar todo antes de tocar la base de datos
+    for (const row of rows) {
+      if (!row.project_id) continue;
+      for (let i = 0; i < 5; i++) {
+        const hhmm = row[`d${i}`];
+        const hrs  = parseHHMM(hhmm);
+        if (hrs <= 0) continue;
+        if (hrs > 24) {
+          const DAY_NAMES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+          req.flash('error', `El valor ingresado en ${DAY_NAMES[i]} (${hhmm}) supera el máximo permitido de 24 horas por día.`);
+          return res.redirect(`/hours?weekStart=${weekStart}`);
+        }
+      }
+    }
+
     try {
       await TimeEntry.deleteByUserAndDateRange(req.session.userId, weekStart, weekEnd);
 
-      const rows = req.body.rows ? (Array.isArray(req.body.rows) ? req.body.rows : Object.values(req.body.rows)) : [];
       for (const row of rows) {
         if (!row.project_id) continue;
         for (let i = 0; i < 5; i++) {
@@ -239,11 +255,11 @@ const HoursController = {
         }
       }
 
-      req.flash('success', 'Hours saved.');
+      req.flash('success', 'Horas registradas exitosamente.');
       res.redirect(`/hours?weekStart=${weekStart}`);
     } catch (err) {
       console.error(err);
-      req.flash('error', 'Could not save entries.');
+      req.flash('error', 'No se pudieron guardar los registros.');
       res.redirect(`/hours?weekStart=${weekStart}`);
     }
   },
@@ -251,6 +267,12 @@ const HoursController = {
   async create(req, res) {
     const { project_id, task_id, entry_date, hours, description, entry_mode } = req.body;
     const finalDate = entry_date || new Date().toISOString().slice(0, 10);
+    const parsedHours = parseFloat(hours);
+    if (isNaN(parsedHours) || parsedHours <= 0 || parsedHours > 24) {
+      req.flash('error', 'Las horas deben ser un valor entre 0.01 y 24.');
+      const returnUrl = entry_mode === 'day' ? `/hours?view=day&date=${finalDate}` : '/hours';
+      return res.redirect(returnUrl);
+    }
     try {
       await TimeEntry.create({
         user_id: req.session.userId,
@@ -260,7 +282,7 @@ const HoursController = {
         hours,
         description,
       });
-      req.flash('success', 'Hours logged successfully.');
+      req.flash('success', 'Horas registradas exitosamente.');
       const returnUrl = req.body._dayView ? `/hours?view=day&date=${finalDate}` : '/hours';
       res.redirect(returnUrl);
     } catch (err) {
@@ -297,6 +319,11 @@ const HoursController = {
   async update(req, res) {
     const id = parseInt(req.params.id, 10);
     const { project_id, task_id, entry_date, hours, description } = req.body;
+    const parsedHours = parseFloat(hours);
+    if (isNaN(parsedHours) || parsedHours <= 0 || parsedHours > 24) {
+      req.flash('error', 'Las horas deben ser un valor entre 0.01 y 24.');
+      return res.redirect(req.body._returnTo || '/hours');
+    }
     try {
       const entry = await TimeEntry.findById(id);
       if (!entry || entry.user_id !== req.session.userId) {
@@ -310,7 +337,7 @@ const HoursController = {
         hours,
         description,
       });
-      req.flash('success', 'Entry updated.');
+      req.flash('success', 'Entrada actualizada.');
       res.redirect(req.body._returnTo || '/hours');
     } catch (err) {
       console.error(err);
@@ -328,7 +355,7 @@ const HoursController = {
         return res.redirect('/hours');
       }
       await TimeEntry.delete(id);
-      req.flash('success', 'Entry deleted.');
+      req.flash('success', 'Entrada eliminada.');
       res.redirect(req.body._returnTo || '/hours');
     } catch (err) {
       console.error(err);
@@ -350,6 +377,10 @@ const HoursController = {
 
     const parsedHours = parseHHMM(String(hours || ''));
     const id = entry_id ? parseInt(entry_id, 10) : null;
+
+    if (parsedHours > 24) {
+      return res.status(400).json({ ok: false, error: 'El valor ingresado supera el máximo permitido de 24 horas por día.' });
+    }
 
     try {
       // Empty hours + existing entry → delete
@@ -445,7 +476,7 @@ const HoursController = {
       });
     } catch (err) {
       console.error(err);
-      req.flash('error', 'Could not load entries.');
+      req.flash('error', 'No se pudieron cargar los registros.');
       res.redirect('/hours');
     }
   },
@@ -470,8 +501,8 @@ const HoursController = {
       from = `${navYear}-${String(navMonth).padStart(2,'0')}-01`;
       const lastDay = new Date(navYear, navMonth, 0).getDate();
       to = `${navYear}-${String(navMonth).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
-      const MONTH_NAMES = ['January','February','March','April','May','June',
-                           'July','August','September','October','November','December'];
+      const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                           'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
       displayPeriod = `${MONTH_NAMES[navMonth - 1]} ${navYear}`;
       prevLink = null; nextLink = null; // computed below after filters are parsed
     }
@@ -539,10 +570,10 @@ const HoursController = {
         .sort((a, b) => b.value - a.value);
 
       // Labels
-      const donut1Label  = sumBy === 'clients_projects' ? 'Client'   : 'Project';
-      const donut2Label  = sumBy === 'projects_tasks'   ? 'Task'     : sumBy === 'projects_users' ? 'User' : 'Project';
-      const tableHeader  = sumBy === 'projects_tasks'   ? 'PROJECT / TASK'
-                         : sumBy === 'projects_users'   ? 'PROJECT / USER' : 'CLIENT / PROJECT';
+      const donut1Label  = sumBy === 'clients_projects' ? 'Cliente'   : 'Proyecto';
+      const donut2Label  = sumBy === 'projects_tasks'   ? 'Tarea'     : sumBy === 'projects_users' ? 'Usuario' : 'Proyecto';
+      const tableHeader  = sumBy === 'projects_tasks'   ? 'PROYECTO / TAREA'
+                         : sumBy === 'projects_users'   ? 'PROYECTO / USUARIO' : 'CLIENTE / PROYECTO';
 
       // Detailed-report link base
       const detailBase = `/hours/detailed?preset=custom&from=${from}&to=${to}`;
@@ -613,8 +644,8 @@ const HoursController = {
         wb.creator = 'Mis Horas';
         const ws = wb.addWorksheet('Detailed');
         const colDefs = isAdmin
-          ? ['Date','User','Client','Project','Task','Description','Duration']
-          : ['Date','Client','Project','Task','Description','Duration'];
+          ? ['Fecha','Usuario','Cliente','Proyecto','Tarea','Descripción','Duración']
+          : ['Fecha','Cliente','Proyecto','Tarea','Descripción','Duración'];
         ws.addRow(colDefs);
         const headerRow = ws.getRow(1);
         headerRow.height = 22;
@@ -624,14 +655,16 @@ const HoursController = {
           cell.alignment = { vertical: 'middle' };
         });
         entries.forEach(e => {
-          ws.addRow(isAdmin
-            ? [dateStr(e.entry_date), e.user_name, e.client_name, e.project_name, e.task_name||'', e.description||'', hoursToHHMM(e.hours)||'0:00']
-            : [dateStr(e.entry_date), e.client_name, e.project_name, e.task_name||'', e.description||'', hoursToHHMM(e.hours)||'0:00']);
+          const row = ws.addRow(isAdmin
+            ? [dateStr(e.entry_date), e.user_name, e.client_name, e.project_name, e.task_name||'', e.description||'', parseFloat(e.hours) / 24]
+            : [dateStr(e.entry_date), e.client_name, e.project_name, e.task_name||'', e.description||'', parseFloat(e.hours) / 24]);
+          row.getCell(colDefs.length).numFmt = '[h]:mm';
         });
         const tr = ws.addRow(isAdmin
-          ? ['','','','','','TOTAL', hoursToHHMM(totalHours)||'0:00']
-          : ['','','','','TOTAL', hoursToHHMM(totalHours)||'0:00']);
+          ? ['','','','','','TOTAL', parseFloat(totalHours.toFixed(4)) / 24]
+          : ['','','','','TOTAL', parseFloat(totalHours.toFixed(4)) / 24]);
         tr.font = { bold: true };
+        tr.getCell(colDefs.length).numFmt = '[h]:mm';
         const lastCol = colDefs.length; const secLast = lastCol - 1;
         [secLast, lastCol].forEach(ci => {
           tr.getCell(ci).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEBF3FF' } };
@@ -650,17 +683,17 @@ const HoursController = {
         const doc = new PDFDoc({ margin: 40, size: 'A4', layout: 'landscape', bufferPages: true });
         doc.pipe(res);
 
-        doc.fontSize(16).font('Helvetica-Bold').text('Mis Horas – Detailed View');
+        doc.fontSize(16).font('Helvetica-Bold').text('Mis Horas – Vista Detallada');
         doc.fontSize(9).font('Helvetica').fillColor('#555555')
-           .text(`Period: ${from} → ${to}   |   Entries: ${entries.length}   |   Total: ${hoursToHHMM(totalHours)||'0:00'}`);
+           .text(`Período: ${from} → ${to}   |   Registros: ${entries.length}   |   Total: ${hoursToHHMM(totalHours)||'0:00'}`);
         doc.moveDown(0.8);
 
         const pageW = doc.page.width - 80;
         const cols2 = isAdmin
-          ? [{l:'Date',w:68},{l:'User',w:90},{l:'Client',w:88},{l:'Project',w:108},{l:'Task',w:98},{l:'Description',w:0},{l:'Duration',w:54}]
-          : [{l:'Date',w:68},{l:'Client',w:100},{l:'Project',w:118},{l:'Task',w:108},{l:'Description',w:0},{l:'Duration',w:54}];
+          ? [{l:'Fecha',w:68},{l:'Usuario',w:90},{l:'Cliente',w:88},{l:'Proyecto',w:108},{l:'Tarea',w:98},{l:'Descripción',w:0},{l:'Duración',w:54}]
+          : [{l:'Fecha',w:68},{l:'Cliente',w:100},{l:'Proyecto',w:118},{l:'Tarea',w:108},{l:'Descripción',w:0},{l:'Duración',w:54}];
         const fixedW = cols2.reduce((s,c) => s + c.w, 0);
-        cols2.find(c => c.l === 'Description').w = Math.max(60, pageW - fixedW);
+        cols2.find(c => c.l === 'Descripción').w = Math.max(60, pageW - fixedW);
 
         const rowH = 17; const headH = 20;
         function drawHead(y) {
@@ -705,8 +738,9 @@ const HoursController = {
         for (let i = 0; i < pages.count; i++) {
           doc.switchToPage(pages.start + i);
           doc.fillColor('#999999').fontSize(8).font('Helvetica')
-             .text(`Page ${i+1} of ${pages.count}`, 40, doc.page.height - 30, { align: 'right', width: pageW });
+             .text(`Página ${i+1} de ${pages.count}`, 40, doc.page.height - 30, { align: 'right', width: pageW });
         }
+        doc.switchToPage(pages.start + pages.count - 1);
         doc.end();
         return;
       }
@@ -715,6 +749,185 @@ const HoursController = {
     } catch (err) {
       console.error(err);
       res.status(500).send('Could not generate file');
+    }
+  },
+
+  async downloadDashboardPdf(req, res) {
+    const isAdmin  = req.session.userRole === 'admin';
+    const today    = getTodayStr();
+    const { from: qFrom, to: qTo, user_id: qUserId, chart1, chart2, donut1Label, donut2Label, donut1Data, donut2Data, totalHours: totalHoursStr } = req.body;
+
+    let donut1 = [], donut2 = [], totalHoursDecimal = 0;
+    try { donut1 = JSON.parse(donut1Data || '[]'); } catch (_) {}
+    try { donut2 = JSON.parse(donut2Data || '[]'); } catch (_) {}
+    totalHoursDecimal = parseFloat(totalHoursStr) || 0;
+
+    const from = (qFrom && /^\d{4}-\d{2}-\d{2}$/.test(qFrom)) ? qFrom : today;
+    const to   = (qTo   && /^\d{4}-\d{2}-\d{2}$/.test(qTo))   ? qTo   : today;
+    const filterUserId = isAdmin && qUserId ? parseInt(qUserId, 10) : null;
+    const userId       = isAdmin ? filterUserId : req.session.userId;
+
+    try {
+      const entries    = await TimeEntry.findDetailed({ from, to, userId });
+      const totalHours = entries.reduce((s, e) => s + parseFloat(e.hours), 0);
+
+      const dateStr = (ds) => {
+        if (!ds) return '';
+        const d = new Date((ds instanceof Date ? ds.toISOString() : String(ds)).slice(0,10) + 'T00:00:00');
+        return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+      };
+
+      const filename = `panel_${from}_${to}`;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}.pdf"`);
+
+      const doc = new PDFDoc({ margin: 40, size: 'A4', layout: 'landscape', bufferPages: true });
+      doc.pipe(res);
+
+      const PALETTE = [
+        '#10b981','#3b82f6','#14b8a6','#8b5cf6','#f59e0b',
+        '#ef4444','#06b6d4','#84cc16','#f97316','#ec4899',
+        '#6366f1','#0891b2','#059669','#7c3aed','#dc2626',
+      ];
+
+      // ── Title ──────────────────────────────────────────────────────────────
+      doc.fontSize(16).font('Helvetica-Bold').fillColor('#000000')
+         .text('Panel – Distribución de Horas');
+      doc.fontSize(9).font('Helvetica').fillColor('#555555')
+         .text(`Período: ${from} → ${to}   |   Registros: ${entries.length}   |   Total: ${hoursToHHMM(totalHours)||'0:00'}`);
+      doc.moveDown(0.8);
+
+      // ── Charts ─────────────────────────────────────────────────────────────
+      const pageW  = doc.page.width - 80;
+      const chartW = 160;
+      const chartH = 160;
+      const halfW  = Math.floor(pageW / 2);
+      const legX1  = 40 + chartW + 10;
+      const legW1  = halfW - chartW - 14;
+      const chartX2 = 40 + halfW;
+      const legX2  = chartX2 + chartW + 10;
+      const legW2  = halfW - chartW - 14;
+      const chartY = doc.y;
+      let hasCharts = false;
+
+      const label1 = donut1Label || '';
+      const label2 = donut2Label || '';
+
+      if (chart1 && chart1.length > 100) {
+        try {
+          const buf = Buffer.from(chart1.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+          if (label1) {
+            doc.fontSize(7).font('Helvetica-Bold').fillColor('#6b7280')
+               .text(label1.toUpperCase(), 40, chartY, { width: chartW, align: 'center' });
+          }
+          const imgY1 = chartY + (label1 ? 11 : 0);
+          doc.image(buf, 40, imgY1, { width: chartW, height: chartH });
+          // Legend
+          let ly = imgY1 + 4;
+          donut1.forEach(function (item, i) {
+            if (ly > imgY1 + chartH - 4) return;
+            const pct = totalHoursDecimal > 0 ? Math.round(item.value / totalHoursDecimal * 100) : 0;
+            const color = PALETTE[i % PALETTE.length];
+            doc.rect(legX1, ly + 1, 8, 8).fill(color);
+            const lbl = item.label.length > 28 ? item.label.slice(0, 26) + '…' : item.label;
+            doc.fillColor('#222222').fontSize(7.5).font('Helvetica')
+               .text(`${lbl} – ${item.value.toFixed(2)} H (${pct}%)`, legX1 + 12, ly, { width: legW1, lineBreak: false, ellipsis: true });
+            ly += 13;
+          });
+          hasCharts = true;
+        } catch (_) {}
+      }
+
+      if (chart2 && chart2.length > 100) {
+        try {
+          const buf = Buffer.from(chart2.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+          if (label2) {
+            doc.fontSize(7).font('Helvetica-Bold').fillColor('#6b7280')
+               .text(label2.toUpperCase(), chartX2, chartY, { width: chartW, align: 'center' });
+          }
+          const imgY2 = chartY + (label2 ? 11 : 0);
+          doc.image(buf, chartX2, imgY2, { width: chartW, height: chartH });
+          // Legend
+          let ly = imgY2 + 4;
+          donut2.forEach(function (item, i) {
+            if (ly > imgY2 + chartH - 4) return;
+            const pct = totalHoursDecimal > 0 ? Math.round(item.value / totalHoursDecimal * 100) : 0;
+            const color = PALETTE[i % PALETTE.length];
+            doc.rect(legX2, ly + 1, 8, 8).fill(color);
+            const lbl = item.label.length > 28 ? item.label.slice(0, 26) + '…' : item.label;
+            doc.fillColor('#222222').fontSize(7.5).font('Helvetica')
+               .text(`${lbl} – ${item.value.toFixed(2)} H (${pct}%)`, legX2 + 12, ly, { width: legW2, lineBreak: false, ellipsis: true });
+            ly += 13;
+          });
+          hasCharts = true;
+        } catch (_) {}
+      }
+
+      if (hasCharts) {
+        doc.y = chartY + chartH + (label1 || label2 ? 11 : 0) + 14;
+        doc.x = 40;
+      }
+      doc.moveDown(0.4);
+
+      // ── Detail table ───────────────────────────────────────────────────────
+      const cols = isAdmin
+        ? [{l:'Fecha',w:68},{l:'Usuario',w:90},{l:'Cliente',w:88},{l:'Proyecto',w:108},{l:'Tarea',w:98},{l:'Descripción',w:0},{l:'Duración',w:54}]
+        : [{l:'Fecha',w:68},{l:'Cliente',w:100},{l:'Proyecto',w:118},{l:'Tarea',w:108},{l:'Descripción',w:0},{l:'Duración',w:54}];
+      const fixedW = cols.reduce((s, c) => s + c.w, 0);
+      cols.find(c => c.l === 'Descripción').w = Math.max(60, pageW - fixedW);
+
+      const rowH = 17; const headH = 20;
+      function drawHead(y) {
+        doc.rect(40, y, pageW, headH).fill('#1a56db');
+        let x = 40;
+        cols.forEach(c => {
+          doc.fillColor('#ffffff').fontSize(8).font('Helvetica-Bold')
+             .text(c.l, x + 4, y + 6, { width: c.w - 6, lineBreak: false });
+          x += c.w;
+        });
+        return y + headH;
+      }
+
+      let y = drawHead(doc.y); let odd = false;
+      entries.forEach(e => {
+        if (y + rowH > doc.page.height - 50) { doc.addPage(); y = drawHead(40); odd = false; }
+        doc.rect(40, y, pageW, rowH).fill(odd ? '#f0f5ff' : '#ffffff');
+        odd = !odd;
+        const vals = isAdmin
+          ? [dateStr(e.entry_date), e.user_name||'', e.client_name||'', e.project_name||'', e.task_name||'', e.description||'', hoursToHHMM(e.hours)||'0:00']
+          : [dateStr(e.entry_date), e.client_name||'', e.project_name||'', e.task_name||'', e.description||'', hoursToHHMM(e.hours)||'0:00'];
+        let x = 40;
+        vals.forEach((v, i) => {
+          doc.fillColor('#222222').fontSize(8).font('Helvetica')
+             .text(String(v), x + 4, y + 5, { width: cols[i].w - 6, lineBreak: false, ellipsis: true });
+          x += cols[i].w;
+        });
+        y += rowH;
+      });
+
+      // Total row
+      if (y + rowH > doc.page.height - 50) { doc.addPage(); y = 40; }
+      doc.rect(40, y, pageW, rowH).fill('#dbeafe');
+      let tx = 40;
+      cols.forEach((c, i) => {
+        const v = i === cols.length - 2 ? 'TOTAL' : i === cols.length - 1 ? (hoursToHHMM(totalHours)||'0:00') : '';
+        doc.fillColor('#1a56db').fontSize(8).font('Helvetica-Bold')
+           .text(v, tx + 4, y + 5, { width: c.w - 6, lineBreak: false });
+        tx += c.w;
+      });
+
+      // Page numbers
+      const pages = doc.bufferedPageRange();
+      for (let i = 0; i < pages.count; i++) {
+        doc.switchToPage(pages.start + i);
+        doc.fillColor('#999999').fontSize(8).font('Helvetica')
+           .text(`Página ${i + 1} de ${pages.count}`, 40, doc.page.height - 30, { align: 'right', width: pageW });
+      }
+      doc.switchToPage(pages.start + pages.count - 1);
+      doc.end();
+    } catch (err) {
+      console.error(err);
+      res.status(500).send('No se pudo generar el PDF');
     }
   },
 };

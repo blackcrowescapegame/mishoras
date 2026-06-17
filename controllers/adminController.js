@@ -397,7 +397,7 @@ const ReportsController = {
 const ImportController = {
   async show(req, res) {
     const pool = await getPool();
-    const usersRes = await pool.request().query('SELECT id, name FROM users WHERE active = 1 ORDER BY name');
+    const usersRes = await pool.request().query('SELECT id, name, active FROM users ORDER BY name');
     res.render('admin/import/index', {
       title: 'Importar datos',
       users: usersRes.recordset,

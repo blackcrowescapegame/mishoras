@@ -24,18 +24,18 @@ function buildUrl(overrides) {
     .join('&');
 }
 const SUM_BY_LABELS = {
-  projects_tasks:   'Projects & tasks',
-  projects_users:   'Projects & users',
-  clients_projects: 'Clients & projects',
+  projects_tasks:   'Proyectos & Tareas',
+  projects_users:   'Proyectos & Usuarios',
+  clients_projects: 'Clientes & Proyectos',
 };
 const nowDate = new Date();
 %>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h2 class="fw-bold mb-0">Dashboard</h2>
+  <h2 class="fw-bold mb-0">Panel</h2>
   <div class="dropdown">
     <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-      <i class="bi bi-download me-1"></i>Download
+      <i class="bi bi-download me-1"></i>Descargar
     </button>
     <ul class="dropdown-menu dropdown-menu-end">
       <li>
@@ -63,19 +63,19 @@ const nowDate = new Date();
       <!-- Period type dropdown -->
       <div class="dropdown">
         <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
-          <%= preset === 'custom' ? 'Custom' : 'Month' %>
+          <%= preset === 'custom' ? 'Personalizado' : 'Mes' %>
         </button>
         <ul class="dropdown-menu">
           <li>
             <a class="dropdown-item <%= preset !== 'custom' ? 'active' : '' %>"
                href="<%- buildUrl({ year: nowDate.getFullYear(), month: nowDate.getMonth()+1, preset: null, from: null, to: null }) %>">
-              This month
+              Este mes
             </a>
           </li>
           <li>
             <a class="dropdown-item <%= preset === 'custom' ? 'active' : '' %>"
                href="<%- buildUrl({ preset: 'custom', from: from, to: to, year: null, month: null }) %>">
-              Custom range
+              Rango personalizado
             </a>
           </li>
         </ul>
@@ -104,14 +104,14 @@ const nowDate = new Date();
         <input type="date" name="from" class="form-control form-control-sm" value="<%= from %>" style="width:140px" />
         <span class="text-muted small">→</span>
         <input type="date" name="to"   class="form-control form-control-sm" value="<%= to %>"   style="width:140px" />
-        <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+        <button type="submit" class="btn btn-sm btn-primary">Aplicar</button>
       </form>
       <% } %>
 
       <!-- Sum by dropdown -->
       <div class="dropdown">
         <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
-          <i class="bi bi-layers me-1"></i>Sum by: <strong><%= SUM_BY_LABELS[sumBy] %></strong>
+          <i class="bi bi-layers me-1"></i>Agrupar por: <strong><%= SUM_BY_LABELS[sumBy] %></strong>
         </button>
         <ul class="dropdown-menu">
           <% ['projects_tasks','projects_users','clients_projects'].forEach(function(opt) { %>
@@ -128,7 +128,7 @@ const nowDate = new Date();
       <!-- Show activity toggle -->
       <a href="<%- buildUrl({ activity: showActivity ? null : '1' }) %>"
          class="btn btn-sm <%= showActivity ? 'btn-secondary' : 'btn-outline-secondary' %>">
-        <i class="bi bi-bar-chart-line me-1"></i>Show activity
+        <i class="bi bi-bar-chart-line me-1"></i>Mostrar actividad
       </a>
     </div>
 
@@ -145,11 +145,14 @@ const nowDate = new Date();
 
       <!-- Client -->
       <div class="dropdown">
-        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
-          <%= selClient ? selClient.name : 'All clients' %>
+        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+          <%= selClient ? selClient.name : 'Todos los clientes' %>
         </button>
-        <ul class="dropdown-menu">
-          <li><a class="dropdown-item <%= !filterClientId ? 'active' : '' %>" href="<%- buildUrl({ client_id: null, project_id: null }) %>">All clients</a></li>
+        <ul class="dropdown-menu" style="max-height:300px;overflow-y:auto;min-width:220px">
+          <li class="px-2 py-1">
+            <input type="text" class="form-control form-control-sm dash-search" placeholder="Buscar..." oninput="dashFilter(this)">
+          </li>
+          <li><a class="dropdown-item <%= !filterClientId ? 'active' : '' %>" href="<%- buildUrl({ client_id: null, project_id: null }) %>">Todos los clientes</a></li>
           <% if (clients.length) { %><li><hr class="dropdown-divider" /></li><% } %>
           <% clients.forEach(function(c) { %>
           <li><a class="dropdown-item <%= filterClientId == c.id ? 'active' : '' %>" href="<%- buildUrl({ client_id: c.id, project_id: null }) %>"><%= c.name %></a></li>
@@ -159,17 +162,20 @@ const nowDate = new Date();
 
       <!-- Project (server-filtered by selected client) -->
       <div class="dropdown">
-        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
-          <%= selProject ? selProject.name : 'All projects' %>
+        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+          <%= selProject ? selProject.name : 'Todos los proyectos' %>
         </button>
-        <ul class="dropdown-menu">
-          <li><a class="dropdown-item <%= !filterProjectId ? 'active' : '' %>" href="<%- buildUrl({ project_id: null }) %>">All projects</a></li>
+        <ul class="dropdown-menu" style="max-height:300px;overflow-y:auto;min-width:220px">
+          <li class="px-2 py-1">
+            <input type="text" class="form-control form-control-sm dash-search" placeholder="Buscar..." oninput="dashFilter(this)">
+          </li>
+          <li><a class="dropdown-item <%= !filterProjectId ? 'active' : '' %>" href="<%- buildUrl({ project_id: null }) %>">Todos los proyectos</a></li>
           <% if (visibleProjects.length) { %><li><hr class="dropdown-divider" /></li><% } %>
           <% visibleProjects.forEach(function(p) { %>
           <li><a class="dropdown-item <%= filterProjectId == p.id ? 'active' : '' %>" href="<%- buildUrl({ project_id: p.id, client_id: p.client_id }) %>"><%= p.name %></a></li>
           <% }) %>
           <% if (filterClientId && visibleProjects.length === 0) { %>
-          <li><span class="dropdown-item text-muted">No projects</span></li>
+          <li><span class="dropdown-item text-muted">Sin proyectos</span></li>
           <% } %>
         </ul>
       </div>
@@ -177,11 +183,14 @@ const nowDate = new Date();
       <% if (isAdmin && users.length) { %>
       <!-- User (admin only) -->
       <div class="dropdown">
-        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
-          <%= selUser ? selUser.name : 'All users' %>
+        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+          <%= selUser ? selUser.name : 'Todos los usuarios' %>
         </button>
-        <ul class="dropdown-menu">
-          <li><a class="dropdown-item <%= !filterUserId ? 'active' : '' %>" href="<%- buildUrl({ user_id: null }) %>">All users</a></li>
+        <ul class="dropdown-menu" style="max-height:300px;overflow-y:auto;min-width:220px">
+          <li class="px-2 py-1">
+            <input type="text" class="form-control form-control-sm dash-search" placeholder="Buscar..." oninput="dashFilter(this)">
+          </li>
+          <li><a class="dropdown-item <%= !filterUserId ? 'active' : '' %>" href="<%- buildUrl({ user_id: null }) %>">Todos los usuarios</a></li>
           <li><hr class="dropdown-divider" /></li>
           <% users.forEach(function(u) { %>
           <li><a class="dropdown-item <%= filterUserId == u.id ? 'active' : '' %>" href="<%- buildUrl({ user_id: u.id }) %>"><%= u.name %></a></li>
@@ -197,7 +206,7 @@ const nowDate = new Date();
 <!-- ── Summary stats ────────────────────────────────────────────────────── -->
 <div class="row mb-4">
   <div class="col-auto">
-    <p class="text-muted small mb-1">Total hours</p>
+    <p class="text-muted small mb-1">Horas totales</p>
     <p class="fs-3 fw-bold mb-0"><%= totalHoursStr %></p>
   </div>
 </div>
@@ -206,11 +215,11 @@ const nowDate = new Date();
 <% if (showActivity) { %>
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
-    <h5 class="mb-0 fw-semibold">Activity</h5>
+    <h5 class="mb-0 fw-semibold">Actividad</h5>
     <div class="btn-group btn-group-sm" id="actTabGroup">
-      <button class="btn btn-outline-secondary active" data-tab="day">Day</button>
-      <button class="btn btn-outline-secondary" data-tab="week">Week</button>
-      <button class="btn btn-outline-secondary" data-tab="month">Month</button>
+      <button class="btn btn-outline-secondary active" data-tab="day">Día</button>
+      <button class="btn btn-outline-secondary" data-tab="week">Semana</button>
+      <button class="btn btn-outline-secondary" data-tab="month">Mes</button>
     </div>
   </div>
   <div class="card-body">
@@ -220,10 +229,10 @@ const nowDate = new Date();
 <% } %>
 
 <!-- ── Distribution ─────────────────────────────────────────────────────── -->
-<h5 class="fw-semibold mb-3">Distribution</h5>
+<h5 class="fw-semibold mb-3">Distribución</h5>
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body">
-    <h6 class="fw-semibold text-muted mb-3">Hours</h6>
+    <h6 class="fw-semibold text-muted mb-3">Horas</h6>
     <div class="row g-4">
 
       <!-- Donut 1 -->
@@ -246,7 +255,7 @@ const nowDate = new Date();
               </span>
             </li>
             <% }) %>
-            <% if (donut1.length === 0) { %><li class="text-muted">No data</li><% } %>
+            <% if (donut1.length === 0) { %><li class="text-muted">Sin datos</li><% } %>
           </ul>
         </div>
       </div>
@@ -271,7 +280,7 @@ const nowDate = new Date();
               </span>
             </li>
             <% }) %>
-            <% if (donut2.length === 0) { %><li class="text-muted">No data</li><% } %>
+            <% if (donut2.length === 0) { %><li class="text-muted">Sin datos</li><% } %>
           </ul>
         </div>
       </div>
@@ -287,8 +296,8 @@ const nowDate = new Date();
       <thead class="border-bottom">
         <tr class="text-uppercase small text-muted">
           <th class="ps-3 py-2 fw-semibold"><%= tableHeader %></th>
-          <th class="text-end py-2 fw-semibold">Total Hours</th>
-          <th class="text-end pe-3 py-2 fw-semibold">Action</th>
+          <th class="text-end py-2 fw-semibold">Horas Totales</th>
+          <th class="text-end pe-3 py-2 fw-semibold">Acción</th>
         </tr>
       </thead>
       <tbody>
@@ -300,7 +309,7 @@ const nowDate = new Date();
           </td>
           <td class="text-end fw-semibold"><%= g.totalHoursStr %> H</td>
           <td class="text-end pe-3">
-            <a href="<%= g.detailLink %>" class="small text-primary">Detailed report</a>
+            <a href="<%= g.detailLink %>" class="small text-primary">Ver detalle</a>
           </td>
         </tr>
         <% g.subs.forEach(function(s) { %>
@@ -308,7 +317,7 @@ const nowDate = new Date();
           <td class="ps-5 text-muted"><%= s.name %></td>
           <td class="text-end text-muted"><%= s.hoursStr %> H</td>
           <td class="text-end pe-3">
-            <a href="<%= s.detailLink %>" class="small text-primary">Detailed report</a>
+            <a href="<%= s.detailLink %>" class="small text-primary">Ver detalle</a>
           </td>
         </tr>
         <% }) %>
@@ -316,7 +325,7 @@ const nowDate = new Date();
         <% if (groups.length === 0) { %>
         <tr>
           <td colspan="3" class="text-center text-muted py-5">
-            <i class="bi bi-inbox fs-3 d-block mb-2"></i>No entries for this period.
+            <i class="bi bi-inbox fs-3 d-block mb-2"></i>Sin registros para este período.
           </td>
         </tr>
         <% } %>
@@ -326,6 +335,32 @@ const nowDate = new Date();
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+  // ── Dropdown search filter ─────────────────────────────────────────────────
+  function dashFilter(input) {
+    var q = input.value.toLowerCase();
+    var ul = input.closest('ul');
+    ul.querySelectorAll('li a.dropdown-item').forEach(function (a) {
+      var match = a.textContent.toLowerCase().includes(q);
+      a.parentElement.style.display = match ? '' : 'none';
+    });
+    // Always keep the divider hidden if filtering
+    ul.querySelectorAll('li hr').forEach(function (hr) {
+      hr.parentElement.style.display = q ? 'none' : '';
+    });
+  }
+  // Reset search when dropdown closes
+  document.addEventListener('hidden.bs.dropdown', function (e) {
+    var ul = e.target.querySelector('ul.dropdown-menu');
+    if (!ul) return;
+    var inp = ul.querySelector('input.dash-search');
+    if (inp) { inp.value = ''; dashFilter(inp); }
+  });
+  // Prevent dropdown from closing when clicking inside the search input
+  document.addEventListener('click', function (e) {
+    if (e.target.classList.contains('dash-search')) e.stopPropagation();
+  }, true);
+</script>
 <script>
 (function () {
   'use strict';
@@ -394,8 +429,8 @@ const nowDate = new Date();
   }
 
   var allDays   = genDays(fromStr, toStr);
-  var MS        = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  var DS        = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var MS        = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  var DS        = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 
   // Day granularity
   var dayLabels = allDays.map(function (d) {
@@ -461,7 +496,7 @@ const nowDate = new Date();
       ctx.setLineDash([]);
       ctx.fillStyle = '#4b5563';
       ctx.font      = '11px sans-serif';
-      ctx.fillText(avg.toFixed(1) + ' avg. hours', xAxis.left + 6, y - 5);
+      ctx.fillText(avg.toFixed(1) + ' prom. hrs', xAxis.left + 6, y - 5);
       ctx.restore();
     }
   };
@@ -480,7 +515,7 @@ const nowDate = new Date();
       data: {
         labels: labels,
         datasets: [{
-          label: 'Hours',
+          label: 'Horas',
           data: values,
           backgroundColor: '#1a56db',
           borderRadius: 3,
@@ -549,7 +584,49 @@ const nowDate = new Date();
   var exBtn = document.getElementById('dashDownloadExcel');
   var pdBtn = document.getElementById('dashDownloadPdf');
   if (exBtn) exBtn.addEventListener('click', function (e) { e.preventDefault(); window.location.href = dashDownloadUrl('excel'); });
-  if (pdBtn) pdBtn.addEventListener('click', function (e) { e.preventDefault(); window.location.href = dashDownloadUrl('pdf');   });
+  if (pdBtn) pdBtn.addEventListener('click', function (e) {
+    e.preventDefault();
+
+    // Capture chart canvases as PNG data URLs
+    var c1 = document.getElementById('donut1Chart');
+    var c2 = document.getElementById('donut2Chart');
+    var chart1Data = c1 ? c1.toDataURL('image/png') : '';
+    var chart2Data = c2 ? c2.toDataURL('image/png') : '';
+
+    // Labels shown above each donut
+    var lbl1 = (document.querySelector('[data-donut1-label]') || {}).textContent
+              || '<%= donut1Label %>';
+    var lbl2 = (document.querySelector('[data-donut2-label]') || {}).textContent
+              || '<%= donut2Label %>';
+
+    // Build a hidden form and submit (triggers browser download)
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/hours/dashboard/pdf';
+    form.style.display = 'none';
+
+    function addField(name, value) {
+      var inp = document.createElement('input');
+      inp.type = 'hidden'; inp.name = name; inp.value = value || '';
+      form.appendChild(inp);
+    }
+
+    addField('_csrf',       '<%= csrfToken %>');
+    addField('from',        dashFrom);
+    addField('to',          dashTo);
+    addField('user_id',     dashUserId || '');
+    addField('chart1',      chart1Data);
+    addField('chart2',      chart2Data);
+    addField('donut1Label', '<%= donut1Label %>');
+    addField('donut2Label', '<%= donut2Label %>');
+    addField('donut1Data',  JSON.stringify(<%- JSON.stringify(donut1) %>));
+    addField('donut2Data',  JSON.stringify(<%- JSON.stringify(donut2) %>));
+    addField('totalHours',  '<%- totalHoursDecimal %>');
+
+    document.body.appendChild(form);
+    form.submit();
+    setTimeout(function () { document.body.removeChild(form); }, 2000);
+  });
 
 })();
 </script>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -17,7 +17,7 @@
           <div class="text-center mb-4">
             <i class="bi bi-clock-history text-primary" style="font-size:3rem"></i>
             <h1 class="h3 mt-2 fw-bold">Mis Horas</h1>
-            <p class="text-muted small">Hour Logging System</p>
+            <p class="text-muted small">Sistema de Registro de Horas</p>
           </div>
 
           <% if (error && error.length) { %>
@@ -34,16 +34,16 @@
           <form method="POST" action="/auth/login" novalidate>
             <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
             <div class="mb-3">
-              <label for="email" class="form-label fw-semibold">Email address</label>
+              <label for="email" class="form-label fw-semibold">Correo electrónico</label>
               <input type="email" id="email" name="email" class="form-control" autocomplete="email" required autofocus />
             </div>
             <div class="mb-4">
-              <label for="password" class="form-label fw-semibold">Password</label>
+              <label for="password" class="form-label fw-semibold">Contraseña</label>
               <input type="password" id="password" name="password" class="form-control" autocomplete="current-password" required />
             </div>
             <div class="d-grid">
               <button type="submit" class="btn btn-primary btn-lg">
-                <i class="bi bi-box-arrow-in-right me-2"></i>Login
+                <i class="bi bi-box-arrow-in-right me-2"></i>Iniciar sesión
               </button>
             </div>
           </form>

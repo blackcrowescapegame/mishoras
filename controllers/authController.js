@@ -16,7 +16,7 @@ const AuthController = {
   async postLogin(req, res) {
     const { email, password } = req.body;
     if (!email || !password) {
-      req.flash('error', 'Email and password are required.');
+      req.flash('error', 'El correo y la contraseña son obligatorios.');
       return res.redirect('/auth/login');
     }
     try {
@@ -57,18 +57,18 @@ const AuthController = {
   async updateProfile(req, res) {
     const { name } = req.body;
     if (!name || !name.trim()) {
-      req.flash('error', 'Name cannot be empty.');
+      req.flash('error', 'El nombre no puede estar vacío.');
       return res.redirect('/auth/profile');
     }
     try {
       await User.updateProfile(req.session.userId, { name: name.trim() });
       req.session.user = { ...req.session.user, name: name.trim() };
       req.session.userName = name.trim();
-      req.flash('success', 'Profile updated.');
+      req.flash('success', 'Perfil actualizado.');
       res.redirect('/auth/profile');
     } catch (err) {
       console.error(err);
-      req.flash('error', 'Could not update profile.');
+      req.flash('error', 'No se pudo actualizar el perfil.');
       res.redirect('/auth/profile');
     }
   },
@@ -76,30 +76,30 @@ const AuthController = {
   async updatePassword(req, res) {
     const { current_password, new_password, confirm_password } = req.body;
     if (!current_password || !new_password || !confirm_password) {
-      req.flash('error', 'All password fields are required.');
+      req.flash('error', 'Todos los campos de contraseña son obligatorios.');
       return res.redirect('/auth/profile');
     }
     if (new_password !== confirm_password) {
-      req.flash('error', 'New passwords do not match.');
+      req.flash('error', 'Las contraseñas nuevas no coinciden.');
       return res.redirect('/auth/profile');
     }
     if (new_password.length < 6) {
-      req.flash('error', 'New password must be at least 6 characters.');
+      req.flash('error', 'La contraseña nueva debe tener al menos 6 caracteres.');
       return res.redirect('/auth/profile');
     }
     try {
       const user = await User.findById(req.session.userId);
       if (!user || !(await bcrypt.compare(current_password, user.password))) {
-        req.flash('error', 'Current password is incorrect.');
+        req.flash('error', 'La contraseña actual es incorrecta.');
         return res.redirect('/auth/profile');
       }
       const hashed = await bcrypt.hash(new_password, 10);
       await User.updatePassword(req.session.userId, hashed);
-      req.flash('success', 'Password changed successfully.');
+      req.flash('success', 'Contraseña actualizada exitosamente.');
       res.redirect('/auth/profile');
     } catch (err) {
       console.error(err);
-      req.flash('error', 'Could not update password.');
+      req.flash('error', 'No se pudo actualizar la contraseña.');
       res.redirect('/auth/profile');
     }
   },

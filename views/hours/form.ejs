@@ -19,15 +19,15 @@
           <!-- Entry mode tabs (only on new entry) -->
           <% if (!entry) { %>
           <div class="mb-3">
-            <label class="form-label fw-semibold">Entry mode</label>
+            <label class="form-label fw-semibold">Modo de entrada</label>
             <div class="btn-group w-100" role="group">
               <input type="radio" class="btn-check" name="entry_mode" id="modeDay" value="day" checked />
               <label class="btn btn-outline-primary" for="modeDay">
-                <i class="bi bi-calendar-day me-1"></i>By day
+                <i class="bi bi-calendar-day me-1"></i>Por día
               </label>
               <input type="radio" class="btn-check" name="entry_mode" id="modeQty" value="quantity" />
               <label class="btn btn-outline-primary" for="modeQty">
-                <i class="bi bi-123 me-1"></i>By quantity
+                <i class="bi bi-123 me-1"></i>Por cantidad
               </label>
             </div>
           </div>
@@ -35,7 +35,7 @@
 
           <!-- Date (shown for "day" mode) -->
           <div class="mb-3" id="dateField">
-            <label for="entry_date" class="form-label fw-semibold">Date</label>
+            <label for="entry_date" class="form-label fw-semibold">Fecha</label>
             <input type="date" id="entry_date" name="entry_date" class="form-control"
                    value="<%= entry ? new Date(entry.entry_date).toISOString().slice(0,10) : new Date().toISOString().slice(0,10) %>"
                    required />
@@ -43,9 +43,9 @@
 
           <!-- Project -->
           <div class="mb-3">
-            <label for="project_id" class="form-label fw-semibold">Project <span class="text-danger">*</span></label>
+            <label for="project_id" class="form-label fw-semibold">Proyecto <span class="text-danger">*</span></label>
             <select id="project_id" name="project_id" class="form-select" required>
-              <option value="">-- Select project --</option>
+              <option value="">-- Seleccionar proyecto --</option>
               <%
                 const groupedProjects = {};
                 projects.forEach(p => {
@@ -65,9 +65,9 @@
 
           <!-- Task (loaded via AJAX) -->
           <div class="mb-3">
-            <label for="task_id" class="form-label fw-semibold">Task <span class="text-muted small">(optional)</span></label>
+            <label for="task_id" class="form-label fw-semibold">Tarea <span class="text-muted small">(opcional)</span></label>
             <select id="task_id" name="task_id" class="form-select">
-              <option value="">-- Select task (optional) --</option>
+              <option value="">-- Seleccionar tarea (opcional) --</option>
               <% tasks.forEach(t => { %>
               <option value="<%= t.id %>" <%= (entry && entry.task_id === t.id) ? 'selected' : '' %>>
                 <%= t.name %>
@@ -78,29 +78,29 @@
 
           <!-- Hours -->
           <div class="mb-3">
-            <label for="hours" class="form-label fw-semibold">Hours <span class="text-danger">*</span></label>
+            <label for="hours" class="form-label fw-semibold">Horas <span class="text-danger">*</span></label>
             <div class="input-group">
               <input type="number" id="hours" name="hours" class="form-control"
                      step="0.25" min="0.25" max="24"
                      value="<%= entry ? parseFloat(entry.hours).toFixed(2) : '' %>"
-                     placeholder="e.g. 2.5" required />
+                     placeholder="ej. 2.5" required />
               <span class="input-group-text">h</span>
             </div>
-            <div class="form-text">You can use decimals (0.25 = 15 min, 0.5 = 30 min…)</div>
+            <div class="form-text">Puedes usar decimales (0.25 = 15 min, 0.5 = 30 min…)</div>
           </div>
 
           <!-- Description -->
           <div class="mb-4">
-            <label for="description" class="form-label fw-semibold">Description</label>
+            <label for="description" class="form-label fw-semibold">Descripción</label>
             <textarea id="description" name="description" class="form-control" rows="3"
-                      placeholder="What did you work on?"><%= entry ? entry.description || '' : '' %></textarea>
+                      placeholder="¿En qué trabajaste?"><%= entry ? entry.description || '' : '' %></textarea>
           </div>
 
           <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary">
-              <i class="bi bi-floppy me-1"></i><%= entry ? 'Save changes' : 'Log hours' %>
+              <i class="bi bi-floppy me-1"></i><%= entry ? 'Guardar cambios' : 'Registrar horas' %>
             </button>
-            <a href="/hours" class="btn btn-outline-secondary">Cancel</a>
+            <a href="/hours" class="btn btn-outline-secondary">Cancelar</a>
           </div>
         </form>
       </div>

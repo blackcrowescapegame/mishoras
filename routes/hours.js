@@ -9,6 +9,7 @@ router.use(requireLogin);
 
 router.get('/',              HoursController.index);
 router.get('/dashboard',          HoursController.dashboardView);
+router.post('/dashboard/pdf',     HoursController.downloadDashboardPdf);
 router.get('/detailed',           HoursController.detailedView);
 router.get('/detailed/:fmt',      HoursController.downloadDetailed);
 router.post('/weekly',       HoursController.saveWeekly);
