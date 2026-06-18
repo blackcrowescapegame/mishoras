@@ -705,7 +705,10 @@ const ImportController = {
           if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
         }
         const d = new Date(s);
-        if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+        if (!isNaN(d.getTime())) {
+          const yr = d.getFullYear();
+          if (yr >= 1900 && yr <= 2100) return d.toISOString().slice(0, 10);
+        }
         return null;
       };
 
