@@ -60,6 +60,17 @@
             </div>
           </div>
 
+          <div class="mb-3">
+            <label for="hours_budget" class="form-label fw-semibold">Presupuesto de horas</label>
+            <div class="input-group">
+              <input type="number" id="hours_budget" name="hours_budget" class="form-control"
+                     min="0" step="0.5"
+                     value="<%= item && item.hours_budget != null ? item.hours_budget : '' %>"
+                     placeholder="ej. 40" />
+              <span class="input-group-text">h</span>
+            </div>
+          </div>
+
           <% if (item) { %>
           <div class="mb-3">
             <label class="form-label fw-semibold">Horas registradas</label>
@@ -69,6 +80,24 @@
             </div>
             <div class="form-text">Calculado automáticamente desde los registros de horas.</div>
           </div>
+
+          <% if (item.hours_budget > 0) {
+               const usedPct = Math.min((loggedHours / item.hours_budget) * 100, 999.9);
+               const usedPctDisplay = usedPct.toFixed(1);
+               const barPct = Math.min(usedPct, 100);
+               const barColor = usedPct >= 100 ? 'bg-danger' : usedPct >= 80 ? 'bg-warning' : 'bg-success';
+          %>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">% de horas usadas</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-pie-chart"></i></span>
+              <input type="text" class="form-control bg-light" value="<%= usedPctDisplay %>% (<%= loggedHours.toFixed(2) %> / <%= item.hours_budget %> h)" readonly />
+            </div>
+            <div class="progress mt-1" style="height:6px">
+              <div class="progress-bar <%= barColor %>" style="width:<%= barPct %>%"></div>
+            </div>
+          </div>
+          <% } %>
           <% } %>
 
           <div class="mb-3">
@@ -140,5 +169,19 @@
     </div>
   </div>
 </div>
+
+<script>
+(function () {
+  var form = document.querySelector('form');
+  form.classList.add('needs-validation');
+  form.addEventListener('submit', function (e) {
+    if (!form.checkValidity()) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    form.classList.add('was-validated');
+  }, true);
+}());
+</script>
 
 <%- include('../../partials/footer') %>

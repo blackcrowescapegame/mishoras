@@ -59,7 +59,7 @@
           <td><span class="badge bg-secondary-subtle text-secondary border"><%= p.client_name %></span></td>
           <td class="text-muted small"><%= p.custom_id || '—' %></td>
           <td class="text-end small"><%= p.flat_fee != null ? parseFloat(p.flat_fee).toLocaleString('es-CL', {minimumFractionDigits:2}) : '—' %></td>
-          <td class="text-end small"><%= p.total_hours != null ? parseFloat(p.total_hours).toFixed(1) : '—' %></td>
+          <td class="text-end small"><%= parseFloat(p.logged_hours).toFixed(1) %></td>
           <td>
             <span class="badge <%= p.active ? 'bg-success' : 'bg-secondary' %>">
               <%= p.active ? 'Activo' : 'Inactivo' %>

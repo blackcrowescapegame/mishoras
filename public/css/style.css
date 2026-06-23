@@ -51,6 +51,11 @@ main {
   }
 }
 
+/* Tom Select dropdown must appear above Bootstrap modals (z-index 1055) */
+.ts-dropdown {
+  z-index: 1070 !important;
+}
+
 /* ── Timesheet grid ── */
 .ts-grid {
   width: 100%;

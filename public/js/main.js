@@ -25,6 +25,13 @@ document.addEventListener('DOMContentLoaded', function () {
       const parts = s.split(':');
       return (parseInt(parts[0], 10) || 0) + (parseInt(parts[1], 10) || 0) / 60;
     }
+    // HHMM without colon: 3+ digits → last 2 are minutes, rest are hours
+    // e.g. 0030 → 0h 30m, 0100 → 1h 0m, 130 → 1h 30m
+    if (/^\d{3,}$/.test(s)) {
+      const mm = parseInt(s.slice(-2), 10) || 0;
+      const hh = parseInt(s.slice(0, -2), 10) || 0;
+      return hh + mm / 60;
+    }
     return parseFloat(s) || 0;
   }
 

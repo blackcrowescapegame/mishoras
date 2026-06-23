@@ -65,6 +65,12 @@ CREATE TABLE time_entries (
 );
 
 -- =====================================================
+-- Migrations
+-- =====================================================
+IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='projects' AND COLUMN_NAME='hours_budget')
+  ALTER TABLE projects ADD hours_budget DECIMAL(8,2) NULL;
+
+-- =====================================================
 -- Seed: default admin user  (password: Admin@1234)
 -- =====================================================
 IF NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin@mishoras.local')

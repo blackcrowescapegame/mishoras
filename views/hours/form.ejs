@@ -80,13 +80,12 @@
           <div class="mb-3">
             <label for="hours" class="form-label fw-semibold">Horas <span class="text-danger">*</span></label>
             <div class="input-group">
-              <input type="number" id="hours" name="hours" class="form-control"
-                     step="0.25" min="0.25" max="24"
-                     value="<%= entry ? parseFloat(entry.hours).toFixed(2) : '' %>"
-                     placeholder="ej. 2.5" required />
+              <input type="text" id="hours" name="hours" class="form-control"
+                     value="<%= entry ? (function(h){ const t=Math.round(parseFloat(h)*60); return Math.floor(t/60)+':'+String(t%60).padStart(2,'0'); })(entry.hours) : '' %>"
+                     placeholder="ej. 1:30 ó 0130" required autocomplete="off" />
               <span class="input-group-text">h</span>
             </div>
-            <div class="form-text">Puedes usar decimales (0.25 = 15 min, 0.5 = 30 min…)</div>
+            <div class="form-text">Formato HH:MM (1:30) o HHMM sin dos puntos (0130 = 1h 30m, 0030 = 30 min)</div>
           </div>
 
           <!-- Description -->
@@ -115,6 +114,35 @@
   const dateField  = document.getElementById('dateField');
   const modeDay    = document.getElementById('modeDay');
   const modeQty    = document.getElementById('modeQty');
+  const hoursInput = document.getElementById('hours');
+
+  // Convert HHMM/HH:MM to decimal before submit
+  function parseHoursInput(str) {
+    if (!str || !str.trim()) return 0;
+    const s = str.trim();
+    if (s.includes(':')) {
+      const parts = s.split(':');
+      return (parseInt(parts[0], 10) || 0) + (parseInt(parts[1], 10) || 0) / 60;
+    }
+    if (/^\d{3,}$/.test(s)) {
+      const mm = parseInt(s.slice(-2), 10) || 0;
+      const hh = parseInt(s.slice(0, -2), 10) || 0;
+      return hh + mm / 60;
+    }
+    return parseFloat(s) || 0;
+  }
+
+  document.querySelector('form').addEventListener('submit', function (e) {
+    const dec = parseHoursInput(hoursInput.value);
+    if (isNaN(dec) || dec <= 0) {
+      e.preventDefault();
+      hoursInput.classList.add('is-invalid');
+      hoursInput.focus();
+      return;
+    }
+    hoursInput.classList.remove('is-invalid');
+    hoursInput.value = dec.toFixed(4);
+  });
 
   // Toggle date visibility for quantity mode
   if (modeDay && modeQty) {

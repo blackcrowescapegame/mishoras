@@ -35,7 +35,7 @@ const UsersController = {
     const { rows: users, total } = await User.findPaged({ page, pageSize: PAGE_SIZE, sort, dir, q });
     const totalPages = Math.ceil(total / PAGE_SIZE);
     res.render('admin/users/index', {
-      title: 'Manage Users', users,
+      title: 'Usuarios', users,
       page, totalPages, total, sort, dir, q,
       success: req.flash('success'), error: req.flash('error'),
       user: req.session.user,
@@ -53,6 +53,10 @@ const UsersController = {
   async create(req, res) {
     const { name, email, password, role, custom_id, labor_rate, billable_rate } = req.body;
     const projectIds = [].concat(req.body.project_ids || []).map(Number).filter(Boolean);
+    if (!name || !name.trim() || !email || !email.trim() || !password || !password.trim()) {
+      req.flash('error', 'Nombre, email y contraseña son obligatorios.');
+      return res.redirect('/admin/users/new');
+    }
     try {
       const hash = await bcrypt.hash(password, SALT_ROUNDS);
       const newId = await User.create({ name, email: email.trim().toLowerCase(), password: hash, role, custom_id, labor_rate, billable_rate });
@@ -77,7 +81,7 @@ const UsersController = {
     const assignedIds = assignedProjects.map(p => p.id);
     res.render('admin/users/form', {
       title: 'Editar Usuario', item, allProjects, assignedIds,
-      error: req.flash('error'), user: req.session.user,
+      success: req.flash('success'), error: req.flash('error'), user: req.session.user,
     });
   },
 
@@ -93,7 +97,7 @@ const UsersController = {
       }
       await User.setProjects(id, projectIds);
       req.flash('success', 'Usuario actualizado.');
-      res.redirect('/admin/users');
+      res.redirect(`/admin/users/${id}/edit`);
     } catch (err) {
       console.error(err);
       req.flash('error', 'No se pudo actualizar el usuario.');
@@ -114,7 +118,7 @@ const ClientsController = {
     const { rows: clients, total } = await Client.findPaged({ page, pageSize: PAGE_SIZE, sort, dir, q });
     const totalPages = Math.ceil(total / PAGE_SIZE);
     res.render('admin/clients/index', {
-      title: 'Manage Clients', clients,
+      title: 'Clientes', clients,
       page, totalPages, total, sort, dir, q,
       success: req.flash('success'), error: req.flash('error'),
       user: req.session.user,
@@ -123,30 +127,34 @@ const ClientsController = {
 
   showNew(req, res) {
     res.render('admin/clients/form', {
-      title: 'New Client', item: null,
+      title: 'Nuevo Cliente', item: null,
       error: req.flash('error'), user: req.session.user,
     });
   },
 
   async create(req, res) {
     const { name, description, custom_id, contact_person, email, phone, address, tax_name, tax_percentage, tax_number } = req.body;
+    if (!name || !name.trim()) {
+      req.flash('error', 'El nombre es obligatorio.');
+      return res.redirect('/admin/clients/new');
+    }
     try {
       await Client.create({ name, description, custom_id, contact_person, email, phone, address, tax_name, tax_percentage, tax_number });
-      req.flash('success', 'Client created.');
+      req.flash('success', 'Cliente creado.');
       res.redirect('/admin/clients');
     } catch (err) {
       console.error(err);
-      req.flash('error', 'Could not create client.');
+      req.flash('error', 'No se pudo crear el cliente.');
       res.redirect('/admin/clients/new');
     }
   },
 
   async showEdit(req, res) {
     const item = await Client.findById(parseInt(req.params.id, 10));
-    if (!item) { req.flash('error', 'Client not found.'); return res.redirect('/admin/clients'); }
+    if (!item) { req.flash('error', 'Cliente no encontrado.'); return res.redirect('/admin/clients'); }
     res.render('admin/clients/form', {
-      title: 'Edit Client', item,
-      error: req.flash('error'), user: req.session.user,
+      title: 'Editar Cliente', item,
+      success: req.flash('success'), error: req.flash('error'), user: req.session.user,
     });
   },
 
@@ -155,11 +163,11 @@ const ClientsController = {
     const { name, description, active, custom_id, contact_person, email, phone, address, tax_name, tax_percentage, tax_number } = req.body;
     try {
       await Client.update(id, { name, description, active: active ? 1 : 0, custom_id, contact_person, email, phone, address, tax_name, tax_percentage, tax_number });
-      req.flash('success', 'Client updated.');
-      res.redirect('/admin/clients');
+      req.flash('success', 'Cliente actualizado.');
+      res.redirect(`/admin/clients/${id}/edit`);
     } catch (err) {
       console.error(err);
-      req.flash('error', 'Could not update client.');
+      req.flash('error', 'No se pudo actualizar el cliente.');
       res.redirect(`/admin/clients/${id}/edit`);
     }
   },
@@ -167,10 +175,10 @@ const ClientsController = {
   async delete(req, res) {
     try {
       await Client.delete(parseInt(req.params.id, 10));
-      req.flash('success', 'Client deactivated.');
+      req.flash('success', 'Cliente desactivado.');
     } catch (err) {
       console.error(err);
-      req.flash('error', 'Could not deactivate client.');
+      req.flash('error', 'No se pudo desactivar el cliente.');
     }
     res.redirect('/admin/clients');
   },
@@ -188,7 +196,7 @@ const ProjectsController = {
     const { rows: projects, total } = await Project.findPaged({ page, pageSize: PAGE_SIZE, sort, dir, q });
     const totalPages = Math.ceil(total / PAGE_SIZE);
     res.render('admin/projects/index', {
-      title: 'Manage Projects', projects,
+      title: 'Proyectos', projects,
       page, totalPages, total, sort, dir, q,
       success: req.flash('success'), error: req.flash('error'),
       user: req.session.user,
@@ -196,20 +204,26 @@ const ProjectsController = {
   },
 
   async showNew(req, res) {
-    const [clients, allTasks] = await Promise.all([Client.findAll(true), Task.findAll(true)]);
+    const [clients, allTasks, allUsers] = await Promise.all([Client.findAll(true), Task.findAll(true), User.findAll()]);
     res.render('admin/projects/form', {
       title: 'Nuevo Proyecto', item: null, clients,
-      allUsers: [], assignedIds: [], allTasks, assignedTaskIds: [], loggedHours: 0,
+      allUsers, assignedIds: [], allTasks, assignedTaskIds: [], loggedHours: 0,
       error: req.flash('error'), user: req.session.user,
     });
   },
 
   async create(req, res) {
-    const { name, description, client_id, custom_id, budget_spent_pct, flat_fee, billable_amount } = req.body;
+    const { name, description, client_id, custom_id, budget_spent_pct, flat_fee, billable_amount, hours_budget } = req.body;
     const userIds = [].concat(req.body.user_ids || []).map(Number).filter(Boolean);
+    const taskIds = [].concat(req.body.task_ids || []).map(Number).filter(Boolean);
+    if (!name || !name.trim() || !client_id) {
+      req.flash('error', 'Nombre y cliente son obligatorios.');
+      return res.redirect('/admin/projects/new');
+    }
     try {
-      const newId = await Project.create({ name, description, client_id: parseInt(client_id, 10), custom_id, budget_spent_pct, flat_fee, billable_amount });
+      const newId = await Project.create({ name, description, client_id: parseInt(client_id, 10), custom_id, budget_spent_pct, flat_fee, billable_amount, hours_budget });
       if (userIds.length) await Project.setUsers(newId, userIds);
+      if (taskIds.length) await Project.setTasks(newId, taskIds);
       req.flash('success', 'Proyecto creado.');
       res.redirect('/admin/projects');
     } catch (err) {
@@ -236,21 +250,21 @@ const ProjectsController = {
     res.render('admin/projects/form', {
       title: 'Editar Proyecto', item, clients, allUsers, assignedIds: assignedUserIds,
       allTasks, assignedTaskIds, loggedHours,
-      error: req.flash('error'), user: req.session.user,
+      success: req.flash('success'), error: req.flash('error'), user: req.session.user,
     });
   },
 
   async update(req, res) {
     const id = parseInt(req.params.id, 10);
-    const { name, description, client_id, active, custom_id, budget_spent_pct, flat_fee, billable_amount } = req.body;
+    const { name, description, client_id, active, custom_id, budget_spent_pct, flat_fee, billable_amount, hours_budget } = req.body;
     const userIds = [].concat(req.body.user_ids || []).map(Number).filter(Boolean);
     const taskIds = [].concat(req.body.task_ids || []).map(Number).filter(Boolean);
     try {
-      await Project.update(id, { name, description, client_id: parseInt(client_id, 10), active: active ? 1 : 0, custom_id, budget_spent_pct, flat_fee, billable_amount });
+      await Project.update(id, { name, description, client_id: parseInt(client_id, 10), active: active ? 1 : 0, custom_id, budget_spent_pct, flat_fee, billable_amount, hours_budget });
       await Project.setUsers(id, userIds);
       await Project.setTasks(id, taskIds);
       req.flash('success', 'Proyecto actualizado.');
-      res.redirect('/admin/projects');
+      res.redirect(`/admin/projects/${id}/edit`);
     } catch (err) {
       console.error(err);
       req.flash('error', 'No se pudo actualizar el proyecto.');
@@ -261,10 +275,10 @@ const ProjectsController = {
   async delete(req, res) {
     try {
       await Project.delete(parseInt(req.params.id, 10));
-      req.flash('success', 'Project deactivated.');
+      req.flash('success', 'Proyecto desactivado.');
     } catch (err) {
       console.error(err);
-      req.flash('error', 'Could not deactivate project.');
+      req.flash('error', 'No se pudo desactivar el proyecto.');
     }
     res.redirect('/admin/projects');
   },
@@ -282,7 +296,7 @@ const TasksController = {
     const { rows: tasks, total } = await Task.findPaged({ page, pageSize: PAGE_SIZE, sort, dir, q });
     const totalPages = Math.ceil(total / PAGE_SIZE);
     res.render('admin/tasks/index', {
-      title: 'Manage Tasks', tasks,
+      title: 'Tareas', tasks,
       page, totalPages, total, sort, dir, q,
       success: req.flash('success'), error: req.flash('error'),
       user: req.session.user,
@@ -300,6 +314,10 @@ const TasksController = {
   async create(req, res) {
     const { name, description, hourly_rate, billable_by_default, add_to_new_projects } = req.body;
     const projectIds = [].concat(req.body.project_ids || []).map(Number).filter(Boolean);
+    if (!name || !name.trim()) {
+      req.flash('error', 'El nombre es obligatorio.');
+      return res.redirect('/admin/tasks/new');
+    }
     try {
       const newId = await Task.create({ name, description, hourly_rate, billable_by_default, add_to_new_projects });
       if (projectIds.length) await Task.setProjects(newId, projectIds);
@@ -323,7 +341,7 @@ const TasksController = {
     const assignedIds = assignedProjects.map(p => p.id);
     res.render('admin/tasks/form', {
       title: 'Editar Tarea', item, allProjects, assignedIds,
-      error: req.flash('error'), user: req.session.user,
+      success: req.flash('success'), error: req.flash('error'), user: req.session.user,
     });
   },
 
@@ -335,7 +353,7 @@ const TasksController = {
       await Task.update(id, { name, description, active: active ? 1 : 0, hourly_rate, billable_by_default, add_to_new_projects });
       await Task.setProjects(id, projectIds);
       req.flash('success', 'Tarea actualizada.');
-      res.redirect('/admin/tasks');
+      res.redirect(`/admin/tasks/${id}/edit`);
     } catch (err) {
       console.error(err);
       req.flash('error', 'No se pudo actualizar la tarea.');
@@ -380,14 +398,14 @@ const ReportsController = {
       }
 
       res.render('admin/reports/index', {
-        title: 'Reports', grouped, summary, users,
+        title: 'Reportes', grouped, summary, users,
         from: from || '', to: to || '', selectedUser: user_id || '',
         success: req.flash('success'), error: req.flash('error'),
         user: req.session.user,
       });
     } catch (err) {
       console.error(err);
-      req.flash('error', 'Could not generate report.');
+      req.flash('error', 'No se pudo generar el reporte.');
       res.redirect('/admin');
     }
   },

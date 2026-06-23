@@ -39,6 +39,13 @@ function parseHHMM(str) {
     const [h, m] = s.split(':').map(n => parseInt(n, 10) || 0);
     return h + m / 60;
   }
+  // HHMM without colon: 3+ digits → last 2 are minutes, rest are hours
+  // e.g. 0030 → 0h 30m, 0100 → 1h 0m, 130 → 1h 30m
+  if (/^\d{3,}$/.test(s)) {
+    const mm = parseInt(s.slice(-2), 10) || 0;
+    const hh = parseInt(s.slice(0, -2), 10) || 0;
+    return hh + mm / 60;
+  }
   return parseFloat(s) || 0;
 }
 
@@ -267,7 +274,7 @@ const HoursController = {
   async create(req, res) {
     const { project_id, task_id, entry_date, hours, description, entry_mode } = req.body;
     const finalDate = entry_date || new Date().toISOString().slice(0, 10);
-    const parsedHours = parseFloat(hours);
+    const parsedHours = parseHHMM(String(hours || ''));
     if (isNaN(parsedHours) || parsedHours <= 0 || parsedHours > 24) {
       req.flash('error', 'Las horas deben ser un valor entre 0.01 y 24.');
       const returnUrl = entry_mode === 'day' ? `/hours?view=day&date=${finalDate}` : '/hours';
@@ -279,7 +286,7 @@ const HoursController = {
         project_id: parseInt(project_id, 10),
         task_id: task_id ? parseInt(task_id, 10) : null,
         entry_date: finalDate,
-        hours,
+        hours: parsedHours,
         description,
       });
       req.flash('success', 'Horas registradas exitosamente.');
@@ -319,7 +326,7 @@ const HoursController = {
   async update(req, res) {
     const id = parseInt(req.params.id, 10);
     const { project_id, task_id, entry_date, hours, description } = req.body;
-    const parsedHours = parseFloat(hours);
+    const parsedHours = parseHHMM(String(hours || ''));
     if (isNaN(parsedHours) || parsedHours <= 0 || parsedHours > 24) {
       req.flash('error', 'Las horas deben ser un valor entre 0.01 y 24.');
       return res.redirect(req.body._returnTo || '/hours');
@@ -334,7 +341,7 @@ const HoursController = {
         project_id: parseInt(project_id, 10),
         task_id: task_id ? parseInt(task_id, 10) : null,
         entry_date,
-        hours,
+        hours: parsedHours,
         description,
       });
       req.flash('success', 'Entrada actualizada.');

@@ -3,6 +3,7 @@
 require('dotenv').config();
 
 const express        = require('express');
+const { getPool, sql } = require('./config/database');
 const session        = require('express-session');
 const flash          = require('connect-flash');
 const methodOverride = require('method-override');
@@ -100,5 +101,22 @@ app.use((err, req, res, _next) => {
 app.listen(PORT, () => {
   console.log(`mishoras running on http://localhost:${PORT}`);
 });
+
+/* ── Auto-migrations ── */
+async function runMigrations() {
+  try {
+    const pool = await getPool();
+    const migrations = [
+      "IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='projects' AND COLUMN_NAME='hours_budget') ALTER TABLE projects ADD hours_budget DECIMAL(8,2) NULL",
+    ];
+    for (const sql of migrations) {
+      await pool.request().query(sql);
+    }
+    console.log('Migrations OK');
+  } catch (err) {
+    console.error('Migration error:', err.message);
+  }
+}
+runMigrations();
 
 module.exports = app;

@@ -30,7 +30,15 @@ const Project = {
 
   async findPaged({ page = 1, pageSize = 10, onlyActive = false, sort = 'name', dir = 'asc', q = '' } = {}) {
     const pool  = await getPool();
-    const ALLOWED = { name: 'p.name', client_name: 'c.name', custom_id: 'p.custom_id', active: 'p.active', created_at: 'p.created_at', flat_fee: 'p.flat_fee', total_hours: 'p.total_hours' };
+    const ALLOWED = {
+      name:        'p.name',
+      client_name: 'c.name',
+      custom_id:   'p.custom_id',
+      active:      'p.active',
+      created_at:  'p.created_at',
+      flat_fee:    'p.flat_fee',
+      total_hours: 'COALESCE((SELECT SUM(te.hours) FROM time_entries te WHERE te.project_id = p.id), 0)',
+    };
     const col   = ALLOWED[sort] || 'p.name';
     const order = dir === 'desc' ? 'DESC' : 'ASC';
     const qTerm = q ? q.trim() : '';
@@ -44,7 +52,8 @@ const Project = {
       buildReq()
         .input('offset',   sql.Int, offset)
         .input('pageSize', sql.Int, pageSize)
-        .query(`SELECT p.*, c.name AS client_name
+        .query(`SELECT p.*, c.name AS client_name,
+                COALESCE((SELECT SUM(te.hours) FROM time_entries te WHERE te.project_id = p.id), 0) AS logged_hours
                 FROM projects p
                 JOIN clients c ON c.id = p.client_id
                 ${where}
@@ -76,7 +85,7 @@ const Project = {
     return result.recordset;
   },
 
-  async create({ name, description, client_id, custom_id, budget_spent_pct, flat_fee, billable_amount, total_hours }) {
+  async create({ name, description, client_id, custom_id, budget_spent_pct, flat_fee, billable_amount, total_hours, hours_budget }) {
     const pool = await getPool();
     const toNum = v => (v !== undefined && v !== null && v !== '') ? parseFloat(v) : null;
     const result = await pool.request()
@@ -88,13 +97,14 @@ const Project = {
       .input('flat_fee',         sql.Decimal,    toNum(flat_fee))
       .input('billable_amount',  sql.Decimal,    toNum(billable_amount))
       .input('total_hours',      sql.Decimal,    toNum(total_hours))
-      .query(`INSERT INTO projects (name, description, client_id, custom_id, budget_spent_pct, flat_fee, billable_amount, total_hours)
+      .input('hours_budget',     sql.Decimal,    toNum(hours_budget))
+      .query(`INSERT INTO projects (name, description, client_id, custom_id, budget_spent_pct, flat_fee, billable_amount, total_hours, hours_budget)
               OUTPUT INSERTED.id
-              VALUES (@name, @description, @client_id, @custom_id, @budget_spent_pct, @flat_fee, @billable_amount, @total_hours)`);
+              VALUES (@name, @description, @client_id, @custom_id, @budget_spent_pct, @flat_fee, @billable_amount, @total_hours, @hours_budget)`);
     return result.recordset[0].id;
   },
 
-  async update(id, { name, description, client_id, active, custom_id, budget_spent_pct, flat_fee, billable_amount }) {
+  async update(id, { name, description, client_id, active, custom_id, budget_spent_pct, flat_fee, billable_amount, hours_budget }) {
     const pool = await getPool();
     const toNum = v => (v !== undefined && v !== null && v !== '') ? parseFloat(v) : null;
     await pool.request()
@@ -107,10 +117,12 @@ const Project = {
       .input('budget_spent_pct', sql.Decimal,    toNum(budget_spent_pct))
       .input('flat_fee',         sql.Decimal,    toNum(flat_fee))
       .input('billable_amount',  sql.Decimal,    toNum(billable_amount))
+      .input('hours_budget',     sql.Decimal,    toNum(hours_budget))
       .query(`UPDATE projects
               SET name = @name, description = @description, client_id = @client_id, active = @active,
                   custom_id = @custom_id, budget_spent_pct = @budget_spent_pct,
                   flat_fee = @flat_fee, billable_amount = @billable_amount,
+                  hours_budget = @hours_budget,
                   updated_at = SYSUTCDATETIME()
               WHERE id = @id`);
   },

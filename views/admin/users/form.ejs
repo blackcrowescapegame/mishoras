@@ -109,4 +109,18 @@
   </div>
 </div>
 
+<script>
+(function () {
+  var form = document.querySelector('form');
+  form.classList.add('needs-validation');
+  form.addEventListener('submit', function (e) {
+    if (!form.checkValidity()) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    form.classList.add('was-validated');
+  }, true);
+}());
+</script>
+
 <%- include('../../partials/footer') %>
