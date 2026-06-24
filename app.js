@@ -19,6 +19,10 @@ const { requireLogin } = require('./middleware/auth');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
+/* ── Trust proxy (required for Azure App Service / reverse proxies) ── */
+/* Allows Express to correctly read X-Forwarded-Proto and mark req.secure */
+app.set('trust proxy', 1);
+
 /* ── View engine ── */
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
