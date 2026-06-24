@@ -72,6 +72,14 @@ IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='projec
 
 -- =====================================================
 -- Seed: default admin user  (password: Admin@1234)
+-- Sessions (connect-mssql-v2 persistent session store)
+IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'Sessions')
+CREATE TABLE Sessions (
+    sid        NVARCHAR(255)  NOT NULL PRIMARY KEY,
+    session    NVARCHAR(MAX)  NOT NULL,
+    expires    DATETIME       NOT NULL
+);
+
 -- =====================================================
 IF NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin@mishoras.local')
 INSERT INTO users (name, email, password, role)

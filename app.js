@@ -5,6 +5,7 @@ require('dotenv').config();
 const express        = require('express');
 const { getPool, sql } = require('./config/database');
 const session        = require('express-session');
+const MSSQLStore     = require('connect-mssql-v2');
 const flash          = require('connect-flash');
 const methodOverride = require('method-override');
 const path           = require('path');
@@ -41,7 +42,20 @@ app.use(express.json());
 app.use(methodOverride('_method'));
 
 /* ── Session ── */
+const sessionDbConfig = {
+  server:   process.env.DB_SERVER,
+  port:     parseInt(process.env.DB_PORT || '1433', 10),
+  database: process.env.DB_DATABASE,
+  user:     process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  options: {
+    encrypt:                process.env.DB_ENCRYPT !== 'false',
+    trustServerCertificate: process.env.DB_TRUST_SERVER_CERT === 'true',
+  },
+};
+
 app.use(session({
+  store: new MSSQLStore(sessionDbConfig),
   secret: process.env.SESSION_SECRET || 'mishoras-dev-secret',
   resave: false,
   saveUninitialized: false,
